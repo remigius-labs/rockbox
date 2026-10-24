@@ -387,7 +387,10 @@ static void rich_draw(struct screen *display, struct gui_synclist *list)
         }
 #endif
         int tx = 6, ty = y + 2 + (RICH_H - 2 - (THUMB + 4)) / 2 + 2, text_x;
-        if (thumb_path(item, p, sizeof(p)))
+        /* every row is a card: albums show their cover, anything else (All Songs) the monk */
+        bool is_album = thumb_path(item, p, sizeof(p));
+        if (!is_album)
+            strlcpy(p, "/.rockbox/wps/Hermit/noart-32.bmp", sizeof(p));
         {
             struct thumb *t = get_thumb(p);
             display->set_drawmode(DRMODE_SOLID);
@@ -406,16 +409,6 @@ static void rich_draw(struct screen *display, struct gui_synclist *list)
                 display->fillrect(tx, ty, THUMB, THUMB);
             }
             text_x = tx + THUMB + 10;
-        }
-        else
-        {
-            if (list->callback_get_item_icon && global_settings.show_icons)
-            {
-                enum themable_icons icon = list->callback_get_item_icon(item, list->data);
-                if (icon != Icon_NOICON)
-                    screen_put_iconxy(display, 1, y + 2 + (RICH_H - 2 - get_icon_height(screen)) / 2, icon);
-            }
-            text_x = 18;
         }
         const char *name = list->callback_get_item_name(item, list->data, buf, sizeof(buf));
         if (!name)

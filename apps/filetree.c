@@ -233,6 +233,13 @@ static int compare(const void* p1, const void* p2)
     struct entry* e2 = (struct entry*)p2;
     int criteria;
 
+    /* RPod: an artist's "All Songs" playlist always comes first, above the albums */
+    {
+        bool a1 = !strncasecmp(e1->name, "All Songs", 9), a2 = !strncasecmp(e2->name, "All Songs", 9);
+        if (a1 != a2)
+            return a1 ? -1 : 1;
+    }
+
     if (cmp_data.sort_dir == SORT_AS_FILE)
     {   /* treat as two files */
         criteria = cmp_data.sort_file;
