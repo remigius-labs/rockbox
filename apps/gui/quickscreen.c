@@ -34,6 +34,7 @@
 #include "viewport.h"
 #include "audio.h"
 #include "quickscreen.h"
+#include "line.h"
 #include "talk.h"
 #include "list.h"
 #include "option_select.h"
@@ -242,6 +243,11 @@ static void gui_quickscreen_draw(const struct gui_quickscreen *qs,
             display->puts(0, 0, title);
             display->puts(0, 1, value);
         }
+#if LCD_DEPTH == 16 && LCD_PIXELFORMAT == RGB565
+        if (rpod_dim)  /* the setting's name gilt like the menu titles; its value stays cream */
+            rpod_gilt_rect(vp->x, vp->y, vp->width, MIN(vp->height, display->getcharheight()),
+                           display->get_foreground());
+#endif
     }
     /* draw the icons */
     display->set_viewport(vp_icons);

@@ -625,34 +625,8 @@ void write_line(struct screen *display, struct align_pos *format_align,
         if (skin_gilt_text && display->screen_type == SCREEN_MAIN && lcd_get_backdrop())
         {
             struct viewport *vp = lcd_current_viewport;
-            const fb_data fgc = (fb_data)display->get_foreground();
-            const fb_data *bd = lcd_get_backdrop();
-            const fb_data LOWc = LCD_RGBPACK(59, 42, 20), GOLDc = LCD_RGBPACK(201, 162, 79),
-                          HIc = LCD_RGBPACK(240, 212, 136);
-            int w = MIN(viewport_width, LCD_WIDTH - vp->x), h = string_height;
-            int y0 = line;
-            if (vp->y + y0 + h > LCD_HEIGHT) h = LCD_HEIGHT - vp->y - y0;
-            if (w > 0 && h > 0 && w <= LCD_WIDTH && h <= 32)
-            {
-                static unsigned char m[32][LCD_WIDTH];
-                for (int y = 0; y < h; y++)
-                    for (int x = 0; x < w; x++)
-                        m[y][x] = *FBADDR(vp->x + x, vp->y + y0 + y) == fgc;
-#define ON(xx, yy) ((xx) >= 0 && (yy) >= 0 && (xx) < w && (yy) < h && m[yy][xx])
-                for (int y = 0; y < h; y++)
-                    for (int x = 0; x < w; x++)
-                    {
-                        fb_data *dst = FBADDR(vp->x + x, vp->y + y0 + y);
-                        if (m[y][x])
-                            *dst = (!ON(x - 1, y) || !ON(x, y - 1)) ? HIc : GOLDc;
-                        else if (ON(x-1,y-1) || ON(x,y-1) || ON(x+1,y-1) || ON(x-1,y) ||
-                                 ON(x+1,y) || ON(x-1,y+1) || ON(x,y+1) || ON(x+1,y+1))
-                            *dst = LOWc;
-                        else if (*dst == fgc)
-                            *dst = bd[(vp->y + y0 + y) * LCD_WIDTH + vp->x + x];
-                    }
-#undef ON
-            }
+            rpod_gilt_rect(vp->x, vp->y + line, viewport_width, string_height,
+                           display->get_foreground());
         }
 #endif
 #if LCD_DEPTH >= 16

@@ -144,4 +144,8 @@ void vput_line(struct screen *display,
                int x, int y, struct line_desc *line,
                const char *fmt, va_list ap);
 
+#if LCD_DEPTH == 16 && !defined(BOOTLOADER)
+void rpod_gilt_rect(int x0, int y0, int w, int h, unsigned fgc); /* RPod, line.c */
+#endif
+
 #endif /* __LINE_H__*/

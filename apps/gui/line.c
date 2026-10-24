@@ -458,3 +458,35 @@ void put_line(struct screen *display,
     vput_line(display, x, y, line, fmt, ap);
     va_end(ap);
 }
+
+#if LCD_DEPTH == 16 && LCD_PIXELFORMAT == RGB565 && !defined(BOOTLOADER)
+/* RPod: turn the text inside an on-screen rect gilt, like the logo. Text pixels are the ones
+ * drawn in colour fgc; they get a dark rim around them, gold inside, lit on the top/left edges.
+ * Pixels the rim does not cover go back to the backdrop only if they still hold fgc. */
+void rpod_gilt_rect(int x0, int y0, int w, int h, unsigned fgc)
+{
+    static unsigned char m[64][LCD_WIDTH];
+    const fb_data LOWc = LCD_RGBPACK(59, 42, 20), GOLDc = LCD_RGBPACK(201, 162, 79),
+                  HIc = LCD_RGBPACK(240, 212, 136);
+    if (x0 < 0 || y0 < 0) return;
+    if (x0 + w > LCD_WIDTH) w = LCD_WIDTH - x0;
+    if (y0 + h > LCD_HEIGHT) h = LCD_HEIGHT - y0;
+    if (h > 64) h = 64;
+    if (w <= 0 || h <= 0) return;
+    for (int y = 0; y < h; y++)
+        for (int x = 0; x < w; x++)
+            m[y][x] = *FBADDR(x0 + x, y0 + y) == (fb_data)fgc;
+#define ON(xx, yy) ((xx) >= 0 && (yy) >= 0 && (xx) < w && (yy) < h && m[yy][xx])
+    for (int y = 0; y < h; y++)
+        for (int x = 0; x < w; x++)
+        {
+            fb_data *dst = FBADDR(x0 + x, y0 + y);
+            if (m[y][x])
+                *dst = (!ON(x - 1, y) || !ON(x, y - 1)) ? HIc : GOLDc;
+            else if (ON(x-1,y-1) || ON(x,y-1) || ON(x+1,y-1) || ON(x-1,y) ||
+                     ON(x+1,y) || ON(x-1,y+1) || ON(x,y+1) || ON(x+1,y+1))
+                *dst = LOWc;
+        }
+#undef ON
+}
+#endif
