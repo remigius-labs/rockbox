@@ -21,6 +21,7 @@
 #include "config.h"
 #include "yesno.h"
 #include "string-extra.h"
+#include "line.h"
 #include "system.h"
 #include "kernel.h"
 #include "misc.h"
@@ -60,14 +61,24 @@ static void talk_text_message(const struct text_message * message, bool enqueue)
 }
 
 /* RPod: one text line, centred, straight onto the darkened painting */
-static void put_dark_line(struct screen *display, int line, const char *text)
+static void put_dark_line(struct screen *display, int line, const char *text, bool gilt)
 {
 #if LCD_DEPTH == 16
     int w, h;
     display->getstringsize(text, &w, &h);
     display->set_drawmode(DRMODE_FG);
     display->putsxy((display->getwidth() - w) / 2, line * h, text);
+#if LCD_PIXELFORMAT == RGB565
+    if (gilt && display->screen_type == SCREEN_MAIN)  /* the question gilt, like the menu titles */
+    {
+        struct viewport *vp = lcd_current_viewport;
+        rpod_gilt_rect(vp->x, vp->y + line * h, vp->width, h, display->get_foreground());
+    }
 #else
+    (void)gilt;
+#endif
+#else
+    (void)gilt;
     display->puts(0, line, text);
 #endif
 }
@@ -88,11 +99,11 @@ static int put_message(struct screen *display,
             display->getstringsize(t, &w, NULL);
             if (w <= display->getwidth() - 10)
             {
-                put_dark_line(display, line++, t);
+                put_dark_line(display, line++, t, true);
                 break;
             }
             /* longest prefix ending before a space that fits */
-            int cut = 0;
+            int cut = 0, sentence = 0;
             for (int j = 0; t[j] && j < (int)sizeof(buf) - 1; j++)
             {
                 if (t[j] != ' ')
@@ -103,15 +114,19 @@ static int put_message(struct screen *display,
                 if (w > display->getwidth() - 10)
                     break;
                 cut = j;
+                if (j > 0 && (t[j-1] == '.' || t[j-1] == '?' || t[j-1] == '!'))
+                    sentence = j;
             }
+            if (sentence)  /* a new sentence starts on its own line */
+                cut = sentence;
             if (!cut)
             {
-                put_dark_line(display, line++, t);
+                put_dark_line(display, line++, t, true);
                 break;
             }
             strmemccpy(buf, t, cut + 1);
             buf[cut] = '\0';
-            put_dark_line(display, line++, buf);
+            put_dark_line(display, line++, buf, true);
             t += cut + 1;
         }
     }
@@ -231,8 +246,8 @@ static void gui_yesno_draw(struct gui_yesno * yn)
     {
         if(line_shift + 3 <= vp_lines)
             line_shift++;
-        put_dark_line(display, line_shift, str(LANG_CONFIRM_WITH_BUTTON));
-        put_dark_line(display, line_shift+1, str(LANG_CANCEL_WITH_ANY));
+        put_dark_line(display, line_shift, str(LANG_CONFIRM_WITH_BUTTON), false);
+        put_dark_line(display, line_shift+1, str(LANG_CANCEL_WITH_ANY), false);
 
         if (def_res == YESNO_YES || def_res == YESNO_NO)
         {
@@ -240,7 +255,7 @@ static void gui_yesno_draw(struct gui_yesno * yn)
             char buf[64];
             snprintf(buf, sizeof(buf), "%s (%02d)", str(def_res == YESNO_YES ?
                      LANG_CONFIRM_WITH_BUTTON : LANG_CANCEL_WITH_ANY), tm_rem);
-            put_dark_line(display, def_res == YESNO_YES ? line_shift : line_shift+1, buf);
+            put_dark_line(display, def_res == YESNO_YES ? line_shift : line_shift+1, buf, false);
         }
     }
 #endif
