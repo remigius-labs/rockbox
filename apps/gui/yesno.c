@@ -119,6 +119,21 @@ static void gui_yesno_draw(struct gui_yesno * yn)
                 unsigned b = (p & 0x1f) * 87 >> 8;
                 row[x] = (r << 11) | (g << 5) | b;
             }
+        /* and the 1px row between the top bar's rule and this viewport, from the backdrop so
+         * redraws (timeout countdown) never dim it twice */
+        fb_data *bd = lcd_get_backdrop();
+        if (bd && vp->y > 0)
+        {
+            fb_data *dst = FBADDR(vp->x, vp->y - 1);
+            const fb_data *src = bd + (vp->y - 1) * LCD_WIDTH + vp->x;
+            for (int x = 0; x < vp->width; x++)
+            {
+                unsigned p = src[x];
+                dst[x] = ((((p >> 11) & 0x1f) * 87 >> 8) << 11) |
+                         ((((p >> 5) & 0x3f) * 87 >> 8) << 5) |
+                         ((p & 0x1f) * 87 >> 8);
+            }
+        }
         /* text straight onto the dimmed backdrop, no undimmed strip behind each line */
         vp->drawmode = DRMODE_FG;
     }
