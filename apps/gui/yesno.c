@@ -20,6 +20,7 @@
  ****************************************************************************/
 #include "config.h"
 #include "yesno.h"
+#include "string-extra.h"
 #include "system.h"
 #include "kernel.h"
 #include "misc.h"
@@ -75,14 +76,46 @@ static int put_message(struct screen *display,
                         const struct text_message * message,
                         int start, int max_y)
 {
-    int i;
-    int ct = MIN(message->nb_lines, max_y - start);
-    for(i=0; i < ct; i++)
+    /* RPod: a line wider than the screen wraps at a space onto the next line */
+    int line = start;
+    for (int i = 0; i < message->nb_lines && line < max_y; i++)
     {
-        put_dark_line(display, i+start,
-                 P2STR((unsigned char *)message->message_lines[i]));
+        const char *t = P2STR((unsigned char *)message->message_lines[i]);
+        char buf[128];
+        while (*t && line < max_y)
+        {
+            int w;
+            display->getstringsize(t, &w, NULL);
+            if (w <= display->getwidth() - 10)
+            {
+                put_dark_line(display, line++, t);
+                break;
+            }
+            /* longest prefix ending before a space that fits */
+            int cut = 0;
+            for (int j = 0; t[j] && j < (int)sizeof(buf) - 1; j++)
+            {
+                if (t[j] != ' ')
+                    continue;
+                strmemccpy(buf, t, j + 1);
+                buf[j] = '\0';
+                display->getstringsize(buf, &w, NULL);
+                if (w > display->getwidth() - 10)
+                    break;
+                cut = j;
+            }
+            if (!cut)
+            {
+                put_dark_line(display, line++, t);
+                break;
+            }
+            strmemccpy(buf, t, cut + 1);
+            buf[cut] = '\0';
+            put_dark_line(display, line++, buf);
+            t += cut + 1;
+        }
     }
-    return i;
+    return line - start;
 }
 
 /*
