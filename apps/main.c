@@ -265,7 +265,8 @@ int show_logo_boot( void )
         lcd_putsxy((LCD_WIDTH/2) - (ver_w/2), 0, version);
     lcd_bmp(&bm_rockboxlogo, (LCD_WIDTH - BMPWIDTH_rockboxlogo) / 2, 16);
 #else
-    lcd_bmp(&bm_rockboxlogo, (LCD_WIDTH - BMPWIDTH_rockboxlogo) / 2, 10);
+    lcd_bmp(&bm_rockboxlogo, (LCD_WIDTH - BMPWIDTH_rockboxlogo) / 2,
+            BMPHEIGHT_rockboxlogo >= LCD_HEIGHT ? 0 : 10);
     if (ver_w > LCD_WIDTH)
         lcd_putsxy(0, LCD_HEIGHT-font_h, rbversion);
     else
