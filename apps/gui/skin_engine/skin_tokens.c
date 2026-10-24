@@ -199,6 +199,37 @@ const char *get_cuesheetid3_token(struct wps_token *token, struct mp3entry *id3,
     return NULL;
 }
 
+/* RPod: titles on screen drop a remaster note: "Song (Remastered 2024 Edition)",
+ * "Song (2011 Remaster)", "Song [Remastered]", "Song - Remastered 2009" all show "Song".
+ * Display only; the file and its tags are untouched. */
+static const char *rpod_clean_title(const char *t, char *buf, size_t buf_size)
+{
+    size_t n = strlen(t);
+    if (!buf || buf_size < 2)
+        return t;
+    for (size_t i = 0; i + 8 <= n; i++)
+    {
+        if (strncasecmp(t + i, "remaster", 8))
+            continue;
+        /* the start of the note: an opening bracket before it, else a " - " before it */
+        long cut = -1;
+        for (long j = (long)i - 1; j >= 0; j--)
+            if (t[j] == '(' || t[j] == '[') { cut = j; break; }
+        if (cut < 0)
+            for (long j = (long)i - 3; j >= 0; j--)
+                if (t[j] == ' ' && t[j+1] == '-' && t[j+2] == ' ') { cut = j; break; }
+        while (cut > 0 && t[cut-1] == ' ')
+            cut--;
+        if (cut <= 0)
+            return t;
+        size_t len = MIN((size_t)cut, buf_size - 1);
+        memcpy(buf, t, len);
+        buf[len] = '\0';
+        return buf;
+    }
+    return t;
+}
+
 static const char* get_filename_token(struct wps_token *token, char* filename,
                                char *buf, int buf_size)
 {
@@ -269,7 +300,7 @@ const char *get_id3_token(struct wps_token *token, struct mp3entry *id3,
                 }
                 return NULL;
             case SKIN_TOKEN_METADATA_TRACK_TITLE:
-                return id3->title;
+                return id3->title ? rpod_clean_title(id3->title, buf, buf_size) : NULL;
             case SKIN_TOKEN_METADATA_VERSION:
                 switch (id3->id3version)
                 {
