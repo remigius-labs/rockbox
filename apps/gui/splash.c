@@ -150,6 +150,28 @@ static bool splash_internal(struct screen * screen, const char *fmt, va_list ap,
 
     screen->scroll_stop();
 
+#if LCD_DEPTH == 16 && LCD_PIXELFORMAT == RGB565 && !defined(BOOTLOADER)
+    /* RPod: no box. Darken the whole area to the top bar's dark (34%, from the backdrop so
+     * repeated splashes never stack) and put the text in the middle, like the yes/no screen */
+    bool rpod_dim = screen->screen_type == SCREEN_MAIN && lcd_get_backdrop();
+    if (rpod_dim)
+    {
+        const fb_data *bd = lcd_get_backdrop();
+        for (int yy = 0; yy < vp->height && vp->y + yy < LCD_HEIGHT; yy++)
+        {
+            fb_data *dst = FBADDR(vp->x, vp->y + yy);
+            const fb_data *src = bd + (vp->y + yy) * LCD_WIDTH + vp->x;
+            for (int xx = 0; xx < vp->width && vp->x + xx < LCD_WIDTH; xx++)
+            {
+                unsigned p = src[xx];
+                dst[xx] = ((((p >> 11) & 0x1f) * 87 >> 8) << 11) |
+                          ((((p >> 5) & 0x3f) * 87 >> 8) << 5) |
+                          ((p & 0x1f) * 87 >> 8);
+            }
+        }
+    }
+#endif
+
     width = maxw + 2*RECT_SPACING;
     height = y + 2*RECT_SPACING;
 
@@ -167,6 +189,15 @@ static bool splash_internal(struct screen * screen, const char *fmt, va_list ap,
     max_width[screen->screen_type] = width;
 
     vp->flags |=  VP_FLAG_ALIGN_CENTER;
+#if LCD_DEPTH == 16 && LCD_PIXELFORMAT == RGB565 && !defined(BOOTLOADER)
+    if (rpod_dim)
+    {
+        vp->drawmode = DRMODE_FG;
+        for(i = 0, y = RECT_SPACING; i <= line; i++, y+= chr_h)
+            screen->putsxyf(0, y, "%.*s", lines[i].len, lines[i].str);
+        return true; /* needs update */
+    }
+#endif
 #if LCD_DEPTH > 1
     unsigned fg = 0, bg = 0;
     bool broken = false;
