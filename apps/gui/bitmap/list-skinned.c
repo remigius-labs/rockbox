@@ -214,7 +214,7 @@ static void rpod_scrollbar(struct screen *display, struct gui_synclist *list, st
     {
         struct viewport vp = *parent;
         vp.width = SCROLLBAR_WIDTH;
-        vp.height = line_h * display_lines;
+        vp.height = parent->height; /* the whole list area, top to bottom, whatever the row height */
         if (list->scrollbar == SCROLLBAR_RIGHT)
             vp.x = parent->x + parent->width - SCROLLBAR_WIDTH - 6; /* 6px margin (rows stop 6px before it, above): right edge on x=313 with the battery, mode icons and bar */
         display->set_viewport(&vp);
