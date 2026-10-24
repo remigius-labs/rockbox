@@ -202,6 +202,9 @@ bool skinlist_draw(struct screen *display, struct gui_synclist *list)
 
     display->set_viewport(parent);
     display->clear_viewport();
+    /* RPod: the selected row scrolls inside the shared selected_item_vp; stop whatever line the
+     * previous list left scrolling there, or it keeps drawing over this one */
+    display->scroll_stop_viewport(&listcfg[screen]->selected_item_vp.vp);
     current_item = list->selected_item;
     current_nbitems = list->nb_items;
     needs_scrollbar[screen] = list->nb_items > display_lines;
