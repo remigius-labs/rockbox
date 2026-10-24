@@ -375,6 +375,8 @@ static void rich_draw(struct screen *display, struct gui_synclist *list)
             display->set_drawmode(DRMODE_SOLID);
             display->set_foreground(LOWc);
             display->hline(0, right - 1, y);
+            display->set_foreground(HIc);   /* the lit top edge, like the other rows */
+            display->hline(0, right - 1, y + 1);
         }
 #endif
         int tx = 6, ty = y + (RICH_H - THUMB) / 2, text_x;
