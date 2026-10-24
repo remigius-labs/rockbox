@@ -350,6 +350,41 @@ static void system_restore(void)
     tree_restore();
 }
 
+/* RPod: the shutdown message on the dimmed painting, cream text, no box */
+static void shutdown_message(const char *fmt, ...)
+{
+    char msg[64];
+    va_list ap;
+    va_start(ap, fmt);
+    vsnprintf(msg, sizeof(msg), fmt, ap);
+    va_end(ap);
+#if LCD_DEPTH == 16 && LCD_PIXELFORMAT == RGB565
+    struct viewport vp;
+    viewport_set_fullscreen(&vp, SCREEN_MAIN);
+    struct viewport *last_vp = lcd_set_viewport(&vp);
+    lcd_clear_viewport();
+    fb_data *row = FBADDR(0, 0);
+    for (int y = 0; y < LCD_HEIGHT; y++, row += vp.buffer->stride)
+        for (int x = 0; x < LCD_WIDTH; x++)
+        {
+            unsigned px = row[x];
+            row[x] = ((((px >> 11) & 0x1f) * 89 >> 8) << 11) |
+                     ((((px >> 5) & 0x3f) * 89 >> 8) << 5) |
+                     ((px & 0x1f) * 89 >> 8);
+        }
+    int w, h;
+    lcd_setfont(FONT_UI);
+    lcd_getstringsize(msg, &w, &h);
+    lcd_set_drawmode(DRMODE_FG);
+    lcd_set_foreground(LCD_RGBPACK(232, 217, 181));
+    lcd_putsxy((LCD_WIDTH - w) / 2, (LCD_HEIGHT - h) / 2, msg);
+    lcd_update();
+    lcd_set_viewport(last_vp);
+#else
+    splash(0, msg);
+#endif
+}
+
 static bool clean_shutdown(enum shutdown_type sd_type,
                            void (*callback)(void *), void *parameter)
 {
@@ -393,19 +428,19 @@ static bool clean_shutdown(enum shutdown_type sd_type,
             if (level > 10 || level < 0)
             {
                 if (global_settings.show_shutdown_message)
-                    splash(0, str(LANG_SHUTTINGDOWN));
+                    shutdown_message("%s", str(LANG_SHUTTINGDOWN));
             }
             else
             {
                 msg_id = LANG_WARNING_BATTERY_LOW;
-                splashf(0, "%s %s", str(LANG_WARNING_BATTERY_LOW),
+                shutdown_message("%s %s", str(LANG_WARNING_BATTERY_LOW),
                                     str(LANG_SHUTTINGDOWN));
             }
         }
         else
         {
             msg_id = LANG_WARNING_BATTERY_EMPTY;
-            splashf(0, "%s %s", str(LANG_WARNING_BATTERY_EMPTY),
+            shutdown_message("%s %s", str(LANG_WARNING_BATTERY_EMPTY),
                                 str(LANG_SHUTTINGDOWN));
         }
 
