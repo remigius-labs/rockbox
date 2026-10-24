@@ -61,6 +61,7 @@
 #include "playlist.h"
 #include "yesno.h"
 #include "viewport.h"
+#include "line.h"
 #include "list.h"
 #include "fixedpoint.h"
 #include "open_plugin.h"
@@ -377,6 +378,9 @@ static void shutdown_message(const char *fmt, ...)
     lcd_set_drawmode(DRMODE_FG);
     lcd_set_foreground(LCD_RGBPACK(232, 217, 181));
     lcd_putsxy((LCD_WIDTH - w) / 2, (LCD_HEIGHT - h) / 2, msg);
+    /* gilt like the menu titles */
+    rpod_gilt_rect((LCD_WIDTH - w) / 2 - 1, (LCD_HEIGHT - h) / 2 - 1, w + 2, h + 2,
+                   LCD_RGBPACK(232, 217, 181));
     lcd_update();
     lcd_set_viewport(last_vp);
 #else
