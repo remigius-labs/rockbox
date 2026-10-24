@@ -1135,7 +1135,7 @@ MENUITEM_FUNCTION_W_PARAM(sleep_30, 0, "30 min", sleep_set, (void*)30, NULL, Ico
 MENUITEM_FUNCTION_W_PARAM(sleep_60, 0, "60 min", sleep_set, (void*)60, NULL, Icon_NOICON);
 MENUITEM_FUNCTION_W_PARAM(sleep_track, 0, "End of track", sleep_set, (void*)-1, NULL, Icon_NOICON);
 MENUITEM_FUNCTION_W_PARAM(sleep_off, 0, "Off", sleep_set, (void*)0, NULL, Icon_NOICON);
-MAKE_ONPLAYMENU(sleep_menu, "Sleep", NULL, Icon_Menu_setting,
+MAKE_ONPLAYMENU(sleep_menu, "Sleep", NULL, Icon_Recording, /* RPod iconset: moon */
                 &sleep_15, &sleep_30, &sleep_60, &sleep_track, &sleep_off);
 
 /* used when onplay() is called in the CONTEXT_WPS context */
