@@ -671,7 +671,7 @@
     *: "Sound Settings"
   </source>
   <dest>
-    *: "Sound Settings"
+    *: "Sound"
   </dest>
   <voice>
     *: "Sound Settings"
@@ -1178,7 +1178,7 @@
     *: "General Settings"
   </source>
   <dest>
-    *: "General Settings"
+    *: "General"
   </dest>
   <voice>
     *: "General Settings"
@@ -1192,7 +1192,7 @@
     *: "Playback Settings"
   </source>
   <dest>
-    *: "Playback Settings"
+    *: "Playback"
   </dest>
   <voice>
     *: "Playback Settings"
@@ -9137,7 +9137,7 @@
     *: "Theme Settings"
   </source>
   <dest>
-    *: "Theme Settings"
+    *: "Theme"
   </dest>
   <voice>
     *: "Theme Settings"

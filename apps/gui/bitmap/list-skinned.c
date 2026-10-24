@@ -217,6 +217,7 @@ bool skinlist_draw(struct screen *display, struct gui_synclist *list)
             break;
         current_drawing_line = list_start_item+cur_line;
         is_selected = list_start_item+cur_line == list->selected_item;
+        bool first_selected_drawn = false;
 
         for (viewport = SKINOFFSETTOPTR(get_skin_buffer(wps.data), listcfg[screen]->data->tree);
              viewport;
@@ -231,10 +232,18 @@ bool skinlist_draw(struct screen *display, struct gui_synclist *list)
                 (skin_viewport->label && strcmp(label, viewport_label))
                 )
                 continue;
+            bool extra = false;
             if (is_selected)
             {
-                memcpy(&listcfg[screen]->selected_item_vp, skin_viewport, sizeof(struct skin_viewport));
-                skin_viewport = &listcfg[screen]->selected_item_vp;
+                /* RPod: only the row's first viewport (the text) lives in selected_item_vp, where it
+                 * may scroll; the others (icon, edges) get their own copy, else each one overwrites
+                 * the text's viewport and its scroll redraws in the wrong place and colours */
+                static struct skin_viewport selected_extra[NB_SCREENS];
+                extra = first_selected_drawn;
+                first_selected_drawn = true;
+                struct skin_viewport *dst = extra ? &selected_extra[screen] : &listcfg[screen]->selected_item_vp;
+                memcpy(dst, skin_viewport, sizeof(struct skin_viewport));
+                skin_viewport = dst;
             }
             original_x = skin_viewport->vp.x;
             original_y = skin_viewport->vp.y;
@@ -274,7 +283,7 @@ bool skinlist_draw(struct screen *display, struct gui_synclist *list)
                                      &wps, skin_viewport, SKIN_REFRESH_ALL);
             wps_display_images(&wps, &skin_viewport->vp);
             /* force disableing scroll because it breaks later */
-            if (!is_selected)
+            if (!is_selected || extra)
             {
                 display->scroll_stop_viewport(&skin_viewport->vp);
                 skin_viewport->vp.x = original_x;
