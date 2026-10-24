@@ -281,6 +281,42 @@ bool skinlist_draw(struct screen *display, struct gui_synclist *list)
     }
     current_column = -1;
     current_row = -1;
+    /* RPod: draw the built-in list scrollbar (scrollbar / scrollbar width settings) on skinned
+     * lists too, only when the list is longer than the screen, like plain lists do */
+    if (list->scrollbar != SCROLLBAR_OFF && list->nb_items > display_lines)
+    {
+        struct viewport vp = *parent;
+        vp.width = SCROLLBAR_WIDTH;
+        vp.height = listcfg[screen]->height * display_lines;
+        if (list->scrollbar == SCROLLBAR_RIGHT)
+            vp.x = parent->x + parent->width - SCROLLBAR_WIDTH - 8; /* 8px margin, in line with the player frames */
+        display->set_viewport(&vp);
+#if LCD_DEPTH >= 16
+        {   /* gilt: dark rim, lit top/left, gold bottom/right, dark inside; gold thumb with a lit edge */
+            const unsigned low = LCD_RGBPACK(59, 42, 20), gold = LCD_RGBPACK(201, 162, 79),
+                           hi = LCD_RGBPACK(240, 212, 136), inside = LCD_RGBPACK(26, 18, 11);
+            const unsigned old_fg = display->get_foreground();
+            int w = vp.width, h = vp.height;
+            display->set_drawmode(DRMODE_SOLID);
+            display->set_foreground(low);    display->drawrect(0, 0, w, h);
+            display->set_foreground(gold);   display->drawrect(1, 1, w - 2, h - 2);
+            display->set_foreground(hi);     display->hline(1, w - 2, 1); display->vline(1, 1, h - 2);
+            display->set_foreground(inside); display->fillrect(2, 2, w - 4, h - 4);
+            int track = h - 6;
+            int top = 3 + track * list_start_item / list->nb_items;
+            int size = track * display_lines / list->nb_items;
+            if (size < 4) size = 4;
+            if (top + size > 3 + track) top = 3 + track - size;
+            display->set_foreground(gold);   display->fillrect(3, top, w - 6, size);
+            display->set_foreground(hi);     display->hline(3, w - 4, top); display->vline(3, top, top + size - 1);
+            display->set_foreground(old_fg);
+        }
+#else
+        gui_scrollbar_draw(display, (list->scrollbar == SCROLLBAR_LEFT) ? 0 : 1, 0,
+                           SCROLLBAR_WIDTH - 1, vp.height, list->nb_items,
+                           list_start_item, list_start_item + display_lines, VERTICAL);
+#endif
+    }
     display->set_viewport(parent);
     display->update_viewport();
     current_drawing_line = list->selected_item;
