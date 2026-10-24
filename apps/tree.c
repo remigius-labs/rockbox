@@ -222,6 +222,9 @@ static enum themable_icons tree_get_fileicon(int selected_item, void * data)
     {
         struct entry *entry = get_valid_entry(__func__, local_tc, selected_item);
 
+        /* RPod: folders need no icon, the names say it */
+        if (entry->attr & ATTR_DIRECTORY)
+            return Icon_NOICON;
         return filetype_get_icon(entry->attr);
     }
 }
