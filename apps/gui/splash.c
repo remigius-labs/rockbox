@@ -157,7 +157,8 @@ static bool splash_internal(struct screen * screen, const char *fmt, va_list ap,
     if (rpod_dim)
     {
         const fb_data *bd = lcd_get_backdrop();
-        for (int yy = 0; yy < vp->height && vp->y + yy < LCD_HEIGHT; yy++)
+        /* from 1px above: the row between the top rule and this area darkens too */
+        for (int yy = (vp->y > 0 ? -1 : 0); yy < vp->height && vp->y + yy < LCD_HEIGHT; yy++)
         {
             fb_data *dst = FBADDR(vp->x, vp->y + yy);
             const fb_data *src = bd + (vp->y + yy) * LCD_WIDTH + vp->x;

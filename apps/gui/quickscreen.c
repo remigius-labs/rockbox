@@ -199,7 +199,8 @@ static void gui_quickscreen_draw(const struct gui_quickscreen *qs,
     if (rpod_dim)
     {
         const fb_data *bd = lcd_get_backdrop();
-        for (int yy = 0; yy < parent->height && parent->y + yy < LCD_HEIGHT; yy++)
+        /* from 1px above: the row between the top rule and this area darkens too */
+        for (int yy = (parent->y > 0 ? -1 : 0); yy < parent->height && parent->y + yy < LCD_HEIGHT; yy++)
         {
             fb_data *dst = FBADDR(parent->x, parent->y + yy);
             const fb_data *src = bd + (parent->y + yy) * LCD_WIDTH + parent->x;
