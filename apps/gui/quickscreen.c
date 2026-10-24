@@ -234,12 +234,12 @@ static void gui_quickscreen_draw(const struct gui_quickscreen *qs,
         {
             char text[MAX_PATH];
             snprintf(text, MAX_PATH, "%s: %s", title, value);
-            display->puts_scroll(0, 0, text);
+            display->puts(0, 0, text);
         }
         else
-        {
-            display->puts_scroll(0, 0, title);
-            display->puts_scroll(0, 1, value);
+        {   /* RPod: plain text, never scrolling: the scroller would redraw it on the undimmed backdrop */
+            display->puts(0, 0, title);
+            display->puts(0, 1, value);
         }
     }
     /* draw the icons */
