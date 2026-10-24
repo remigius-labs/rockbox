@@ -58,6 +58,24 @@ static void talk_text_message(const struct text_message * message, bool enqueue)
     }
 }
 
+/* RPod: one text line on its own dark block, so it reads over the painting */
+static void put_dark_line(struct screen *display, int line, const char *text)
+{
+#if LCD_DEPTH == 16
+    int w, h;
+    display->getstringsize(text, &w, &h);
+    unsigned fg = display->get_foreground();
+    display->set_drawmode(DRMODE_SOLID);
+    display->set_foreground(LCD_RGBPACK(18, 13, 10));
+    display->fillrect(0, line * h, w + 10, h);
+    display->set_foreground(fg);
+    display->set_drawmode(DRMODE_FG);
+    display->putsxy(5, line * h, text);
+#else
+    display->puts(0, line, text);
+#endif
+}
+
 static int put_message(struct screen *display,
                         const struct text_message * message,
                         int start, int max_y)
@@ -66,8 +84,8 @@ static int put_message(struct screen *display,
     int ct = MIN(message->nb_lines, max_y - start);
     for(i=0; i < ct; i++)
     {
-        display->puts_scroll(0, i+start,
-                             P2STR((unsigned char *)message->message_lines[i]));
+        put_dark_line(display, i+start,
+                 P2STR((unsigned char *)message->message_lines[i]));
     }
     return i;
 }
@@ -170,18 +188,16 @@ static void gui_yesno_draw(struct gui_yesno * yn)
     {
         if(line_shift + 3 <= vp_lines)
             line_shift++;
-        display->puts(0, line_shift, str(LANG_CONFIRM_WITH_BUTTON));
-        display->puts(0, line_shift+1, str(LANG_CANCEL_WITH_ANY));
+        put_dark_line(display, line_shift, str(LANG_CONFIRM_WITH_BUTTON));
+        put_dark_line(display, line_shift+1, str(LANG_CANCEL_WITH_ANY));
 
         if (def_res == YESNO_YES || def_res == YESNO_NO)
         {
             int tm_rem = ((yn->end_tick - current_tick) / 100);
-            if (def_res == YESNO_YES)
-                display->putsf(0, line_shift, "%s (%02d)",
-                               str(LANG_CONFIRM_WITH_BUTTON), tm_rem);
-            else
-                display->putsf(0, line_shift+1, "%s (%02d)",
-                               str(LANG_CANCEL_WITH_ANY), tm_rem);
+            char buf[64];
+            snprintf(buf, sizeof(buf), "%s (%02d)", str(def_res == YESNO_YES ?
+                     LANG_CONFIRM_WITH_BUTTON : LANG_CANCEL_WITH_ANY), tm_rem);
+            put_dark_line(display, def_res == YESNO_YES ? line_shift : line_shift+1, buf);
         }
     }
 #endif
