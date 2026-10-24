@@ -45,6 +45,7 @@
 static struct listitem_viewport_cfg *listcfg[NB_SCREENS] = {NULL};
 bool skinlist_force_lines = false;
 bool skinlist_letterpress = false;
+bool skin_gilt_text = false;
 static struct skin_viewport selected_extra[NB_SCREENS]; /* the selected row's other pieces */
 
 /* RPod: true for the viewports of the selected row (line.c draws its bar see-through) */

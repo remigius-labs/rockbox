@@ -765,6 +765,12 @@ void skin_render_viewport(struct skin_element* viewport, struct gui_wps *gwps,
     struct align_pos * align = &info.align;
     bool needs_update, update_all = false;
     skin_buffer = get_skin_buffer(gwps->data);
+    /* RPod: menu titles (viewports labelled "title"/"themetitle") are drawn gilt */
+    {
+        char *lbl = skin_viewport->label == VP_DEFAULT_LABEL ? NULL :
+                    SKINOFFSETTOPTR(skin_buffer, skin_viewport->label);
+        skin_gilt_text = lbl && (!strcmp(lbl, "title") || !strcmp(lbl, "themetitle"));
+    }
     /* Set images to not to be displayed */
     struct skin_token_list *imglist = SKINOFFSETTOPTR(skin_buffer, gwps->data->images);
     while (imglist)
@@ -843,6 +849,7 @@ void skin_render_viewport(struct skin_element* viewport, struct gui_wps *gwps,
             info.line_number++;
         line = SKINOFFSETTOPTR(skin_buffer, line->next);
     }
+    skin_gilt_text = false;
     wps_display_images(gwps, &skin_viewport->vp);
 }
 
