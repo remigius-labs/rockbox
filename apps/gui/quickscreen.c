@@ -193,6 +193,26 @@ static void gui_quickscreen_draw(const struct gui_quickscreen *qs,
     int temp;
     struct viewport *last_vp = display->set_viewport(parent);
     display->clear_viewport();
+#if LCD_DEPTH == 16 && LCD_PIXELFORMAT == RGB565
+    /* RPod: the same dark as the top bar and the yes/no screen (34%, from the backdrop) */
+    bool rpod_dim = display->screen_type == SCREEN_MAIN && lcd_get_backdrop();
+    if (rpod_dim)
+    {
+        const fb_data *bd = lcd_get_backdrop();
+        for (int yy = 0; yy < parent->height && parent->y + yy < LCD_HEIGHT; yy++)
+        {
+            fb_data *dst = FBADDR(parent->x, parent->y + yy);
+            const fb_data *src = bd + (parent->y + yy) * LCD_WIDTH + parent->x;
+            for (int xx = 0; xx < parent->width && parent->x + xx < LCD_WIDTH; xx++)
+            {
+                unsigned p = src[xx];
+                dst[xx] = ((((p >> 11) & 0x1f) * 87 >> 8) << 11) |
+                          ((((p >> 5) & 0x3f) * 87 >> 8) << 5) |
+                          ((p & 0x1f) * 87 >> 8);
+            }
+        }
+    }
+#endif
 
     for (i = 0; i < QUICKSCREEN_ITEM_COUNT; i++)
     {
@@ -200,6 +220,10 @@ static void gui_quickscreen_draw(const struct gui_quickscreen *qs,
         if (!qs->items[i])
             continue;
         display->set_viewport(vp);
+#if LCD_DEPTH == 16 && LCD_PIXELFORMAT == RGB565
+        if (rpod_dim)
+            vp->drawmode = DRMODE_FG; /* letters only, no bright strip behind them */
+#endif
 
         title = P2STR(ID2P(qs->items[i]->lang_id));
         temp = option_value_as_int(qs->items[i]);
