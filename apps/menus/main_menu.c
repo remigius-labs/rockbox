@@ -512,9 +512,6 @@ MAKE_MENU(main_menu_, ID2P(LANG_SETTINGS), NULL,
         &sound_settings,
         &playback_settings,
         &settings_menu_item, &theme_menu,
-#if CONFIG_RTC
-        &timedate_item,
-#endif
         &main_menu_config_item,
         &manage_settings,
         );
