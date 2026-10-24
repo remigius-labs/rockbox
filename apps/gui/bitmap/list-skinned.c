@@ -45,6 +45,20 @@
 static struct listitem_viewport_cfg *listcfg[NB_SCREENS] = {NULL};
 bool skinlist_force_lines = false;
 bool skinlist_letterpress = false;
+static struct skin_viewport selected_extra[NB_SCREENS]; /* the selected row's other pieces */
+
+/* RPod: true for the viewports of the selected row (line.c draws its bar see-through) */
+bool skinlist_is_selected_vp(const struct viewport *vp)
+{
+    FOR_NB_SCREENS(i)
+    {
+        if (listcfg[i] && vp == &listcfg[i]->selected_item_vp.vp)
+            return true;
+        if (vp == &selected_extra[i].vp)
+            return true;
+    }
+    return false;
+}
 static struct gui_synclist *current_list;
 
 static int current_row;
@@ -240,7 +254,6 @@ bool skinlist_draw(struct screen *display, struct gui_synclist *list)
                 /* RPod: only the row's first viewport (the text) lives in selected_item_vp, where it
                  * may scroll; the others (icon, edges) get their own copy, else each one overwrites
                  * the text's viewport and its scroll redraws in the wrong place and colours */
-                static struct skin_viewport selected_extra[NB_SCREENS];
                 extra = first_selected_drawn;
                 first_selected_drawn = true;
                 struct skin_viewport *dst = extra ? &selected_extra[screen] : &listcfg[screen]->selected_item_vp;

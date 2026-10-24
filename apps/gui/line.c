@@ -32,6 +32,8 @@
 #include "settings.h"
 #include "debug.h"
 #include "viewport.h"
+#include "lcd.h"
+bool skinlist_is_selected_vp(const struct viewport *vp); /* RPod, list-skinned.c */
 #include "debug.h"
 
 #ifdef HAVE_REMOTE_LCD
@@ -138,6 +140,19 @@ static void put_text(struct screen *display,
     unsigned drmode = DRMODE_FG;
     if (line->style & STYLE_INVERT)
         drmode = DRMODE_SOLID | DRMODE_INVERSEVID;
+#if LCD_DEPTH == 16 && !defined(BOOTLOADER)
+    /* RPod: on the see-through selected row draw only the letters (in the text colour),
+     * no solid box behind them */
+    unsigned old_fg = 0;
+    bool see_through = (line->style & STYLE_INVERT) && display->screen_type == SCREEN_MAIN
+                       && skinlist_is_selected_vp(lcd_current_viewport);
+    if (see_through)
+    {
+        old_fg = display->get_foreground();
+        display->set_foreground(display->get_background());
+        drmode = DRMODE_FG;
+    }
+#endif
 
     display->set_drawmode(drmode);
 
@@ -156,6 +171,10 @@ static void put_text(struct screen *display,
     }
     else
         display->putsxy_scroll_func(x, y, text, NULL, NULL, text_skip_pixels);
+#if LCD_DEPTH == 16 && !defined(BOOTLOADER)
+    if (see_through)
+        display->set_foreground(old_fg);
+#endif
 }
 
 /* A line consists of:
@@ -351,6 +370,32 @@ static void style_line(struct screen *display,
             /* Fall through */
 #endif
         case STYLE_INVERT:
+#if LCD_DEPTH == 16 && LCD_PIXELFORMAT == RGB565 && !defined(BOOTLOADER)
+            /* RPod: the selected list row is a see-through gold wash over the backdrop
+             * (55% gold, 45% painting) instead of a solid bar */
+            if (display->screen_type == SCREEN_MAIN && lcd_get_backdrop()
+                && skinlist_is_selected_vp(lcd_current_viewport))
+            {
+                struct viewport *vp = lcd_current_viewport;
+                const fb_data *bd = lcd_get_backdrop();
+                unsigned g = display->get_foreground();
+                unsigned gr = (g >> 11) & 0x1f, gg = (g >> 5) & 0x3f, gb = g & 0x1f;
+                for (int yy = y; yy < y + bar_height && vp->y + yy < LCD_HEIGHT; yy++)
+                {
+                    fb_data *dst = FBADDR(vp->x + x, vp->y + yy);
+                    const fb_data *src = bd + (vp->y + yy) * LCD_WIDTH + vp->x + x;
+                    for (int xx = x; xx < width && vp->x + xx < LCD_WIDTH; xx++, dst++, src++)
+                    {
+                        unsigned p = *src;
+                        unsigned r = ((((p >> 11) & 0x1f) * 115) + gr * 141) >> 8;
+                        unsigned gg2 = ((((p >> 5) & 0x3f) * 115) + gg * 141) >> 8;
+                        unsigned b = (((p & 0x1f) * 115) + gb * 141) >> 8;
+                        *dst = (r << 11) | (gg2 << 5) | b;
+                    }
+                }
+                break;
+            }
+#endif
             display->set_drawmode(DRMODE_FG);
             display->fillrect(x, y, width - x, bar_height);
             break;
