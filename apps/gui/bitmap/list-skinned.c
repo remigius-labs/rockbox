@@ -351,7 +351,9 @@ static void rich_draw(struct screen *display, struct gui_synclist *list)
     const int screen = display->screen_type;
     struct viewport *parent = list->parent[screen];
     const int rows = rich_rows(parent);
-    const int RICH_H = parent->height / rows;   /* fill the area: no leftover strip at the bottom */
+    /* fill the area; even, so the framed cover sits with equal gaps above and below it, measured
+     * below the 2px highlight lines at the top of a row */
+    const int RICH_H = (parent->height / rows) & ~1;
     const int start = list->start_item[screen];
     const bool sb = list->scrollbar != SCROLLBAR_OFF && list->nb_items > rows;
     const int right = parent->width - (sb ? SCROLLBAR_WIDTH + 6 + 6 : 0);
@@ -381,7 +383,7 @@ static void rich_draw(struct screen *display, struct gui_synclist *list)
             display->hline(0, right - 1, y + 1);
         }
 #endif
-        int tx = 6, ty = y + (RICH_H - THUMB) / 2, text_x;
+        int tx = 6, ty = y + 2 + (RICH_H - 2 - (THUMB + 4)) / 2 + 2, text_x;
         if (thumb_path(item, p, sizeof(p)))
         {
             struct thumb *t = get_thumb(p);
@@ -406,7 +408,7 @@ static void rich_draw(struct screen *display, struct gui_synclist *list)
             {
                 enum themable_icons icon = list->callback_get_item_icon(item, list->data);
                 if (icon != Icon_NOICON)
-                    screen_put_iconxy(display, 1, y + (RICH_H - get_icon_height(screen)) / 2, icon);
+                    screen_put_iconxy(display, 1, y + 2 + (RICH_H - 2 - get_icon_height(screen)) / 2, icon);
             }
             text_x = 18;
         }
@@ -417,7 +419,7 @@ static void rich_draw(struct screen *display, struct gui_synclist *list)
         struct viewport tv = *parent;   /* clip the name to its column */
         tv.x += text_x;
         tv.width = MAX(1, right - text_x - 4);
-        tv.y += y + (RICH_H - h) / 2;
+        tv.y += y + 2 + (RICH_H - 2 - h) / 2;
         tv.height = h + 1;
         display->set_viewport(&tv);
         display->set_drawmode(DRMODE_FG);
