@@ -22,6 +22,7 @@
 #include "config.h"
 #include "system.h"
 #include "lcd.h"
+#include "scroll_engine.h"
 #include "font.h"
 #include "button.h"
 #include "string.h"
@@ -364,6 +365,8 @@ static void rich_draw(struct screen *display, struct gui_synclist *list)
 
     display->set_viewport(parent);
     display->clear_viewport();
+    if (screen == SCREEN_MAIN)
+        lcd_scroll_stop_area(parent->x, parent->y, parent->width, parent->height);
     for (int r = 0; r < rows; r++)
     {
         int item = start + r;
@@ -469,9 +472,11 @@ bool skinlist_draw(struct screen *display, struct gui_synclist *list)
 
     display->set_viewport(parent);
     display->clear_viewport();
-    /* RPod: the selected row scrolls inside the shared selected_item_vp; stop whatever line the
-     * previous list left scrolling there, or it keeps drawing over this one */
+    /* RPod: stop every line still scrolling in this list's area (the selected row of this list or
+     * the screen before, whatever viewport it belongs to), or it keeps drawing over this one */
     display->scroll_stop_viewport(&listcfg[screen]->selected_item_vp.vp);
+    if (screen == SCREEN_MAIN)
+        lcd_scroll_stop_area(parent->x, parent->y, parent->width, parent->height);
     current_item = list->selected_item;
     current_nbitems = list->nb_items;
     needs_scrollbar[screen] = list->nb_items > display_lines;

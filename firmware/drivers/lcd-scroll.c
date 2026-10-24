@@ -88,6 +88,30 @@ void LCDFN(scroll_stop_viewport_rect)(const struct viewport *vp, int x, int y, i
     }
 }
 
+/* RPod: stop every scrolling line that overlaps an on-screen area, whichever viewport it
+ * belongs to. A list calls this before drawing, so a line left scrolling by the screen before
+ * (a plain list, the bookmark list) never keeps drawing over the new one. */
+void LCDFN(scroll_stop_area)(int x, int y, int width, int height)
+{
+    int i = 0;
+    while (i < LCDFN(scroll_info).lines)
+    {
+        struct scrollinfo *s = &LCDFN(scroll_info).scroll[i];
+        int sx = s->vp ? s->vp->x + s->x : s->x;
+        int sy = s->vp ? s->vp->y + s->y : s->y;
+        if (x < sx + s->width && x + width > sx && y < sy + s->height && y + height > sy)
+        {
+            s->line = NULL;
+            s->scroll_func(s);
+            if ((i + 1) != LCDFN(scroll_info).lines)
+                LCDFN(scroll_info).scroll[i] = LCDFN(scroll_info).scroll[LCDFN(scroll_info).lines-1];
+            LCDFN(scroll_info).lines--;
+        }
+        else
+            i++;
+    }
+}
+
 /* Stop all scrolling lines in the specified viewport */
 void LCDFN(scroll_stop_viewport)(const struct viewport *vp)
 {
