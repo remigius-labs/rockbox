@@ -106,6 +106,8 @@ static void gui_yesno_draw(struct gui_yesno * yn)
                 unsigned b = (p & 0x1f) * 89 >> 8;
                 row[x] = (r << 11) | (g << 5) | b;
             }
+        /* text straight onto the dimmed backdrop, no undimmed strip behind each line */
+        vp->drawmode = DRMODE_FG;
     }
 #endif
 
@@ -184,6 +186,7 @@ static void gui_yesno_draw(struct gui_yesno * yn)
     }
 #endif
     display->update_viewport();
+    vp->drawmode = oldmode;
     display->set_viewport(last_vp);
 }
 
