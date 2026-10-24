@@ -1141,14 +1141,15 @@ MAKE_ONPLAYMENU(sleep_menu, "Sleep", NULL, Icon_Recording, /* RPod iconset: moon
 /* used when onplay() is called in the CONTEXT_WPS context */
 MAKE_ONPLAYMENU( wps_onplay_menu, ID2P(LANG_ONPLAY_MENU_TITLE),
            onplaymenu_callback, Icon_Audio,
-           /* RPod: trimmed to what gets used; Sleep first */
-           &sleep_menu, &cat_playlist_menu,
-           &sound_settings, &playback_settings,
+           /* RPod: trimmed to what gets used; row by row the same icons as the main menu
+            * (play, bookmark, note, sun/moon, folder/stack); Rating and Cuesheet only show when they apply */
+           &playback_settings, &bookmark_menu,
+           &sound_settings, &sleep_menu,
+           &cat_playlist_menu, &delete_file_item,
 #ifdef HAVE_TAGCACHE
            &rating_item,
 #endif
-           &bookmark_menu,
-           &delete_file_item, &view_cue_item,
+           &view_cue_item,
          );
 
 int sort_playlists_callback(int action,

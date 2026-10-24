@@ -509,11 +509,13 @@ MENUITEM_FUNCTION(main_menu_config_item, 0, ID2P(LANG_MAIN_MENU),
 
 MAKE_MENU(main_menu_, ID2P(LANG_SETTINGS), NULL,
         Icon_Submenu_Entered,
-        &sound_settings,
+        /* RPod: row by row the same icons as the main menu and the Now Playing menu */
         &playback_settings,
-        &settings_menu_item, &theme_menu,
-        &main_menu_config_item,
         &manage_settings,
+        &sound_settings,
+        &theme_menu,
+        &main_menu_config_item,
+        &settings_menu_item,
         );
 /*    MAIN MENU                    */
 /***********************************/
