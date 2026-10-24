@@ -92,6 +92,22 @@ static void gui_yesno_draw(struct gui_yesno * yn)
     vp->drawmode |= DRMODE_SOLID;
     display->fillrect(0, 0, vp->width, vp->height);
     vp->drawmode = oldmode;
+#if LCD_DEPTH == 16 && LCD_PIXELFORMAT == RGB565
+    /* dim the backdrop behind the question to ~35%, like the Now Playing panel */
+    if (display->screen_type == SCREEN_MAIN)
+    {
+        fb_data *row = FBADDR(vp->x, vp->y);
+        for (int y = 0; y < vp->height; y++, row += vp->buffer->stride)
+            for (int x = 0; x < vp->width; x++)
+            {
+                unsigned p = row[x];
+                unsigned r = ((p >> 11) & 0x1f) * 89 >> 8;
+                unsigned g = ((p >> 5) & 0x3f) * 89 >> 8;
+                unsigned b = (p & 0x1f) * 89 >> 8;
+                row[x] = (r << 11) | (g << 5) | b;
+            }
+    }
+#endif
 
     if(main_message->nb_lines + 3 < vp_lines)
         line_shift = 1;
