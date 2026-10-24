@@ -824,7 +824,7 @@ MENUITEM_FUNCTION(clipboard_copy_item, 0, ID2P(LANG_COPY),
 MENUITEM_FUNCTION(clipboard_paste_item, 0, ID2P(LANG_PASTE),
                   clipboard_paste, clipboard_callback, Icon_NOICON);
 MENUITEM_FUNCTION(delete_file_item, 0, ID2P(LANG_DELETE),
-                  clipboard_delete_selected_fileobject, clipboard_callback, Icon_NOICON);
+                  clipboard_delete_selected_fileobject, clipboard_callback, Icon_Keyboard); /* RPod iconset: trash can */
 MENUITEM_FUNCTION(delete_dir_item, 0, ID2P(LANG_DELETE_DIR),
                  clipboard_delete_selected_fileobject, clipboard_callback, Icon_NOICON);
 MENUITEM_FUNCTION(create_dir_item, 0, ID2P(LANG_CREATE_DIR),
