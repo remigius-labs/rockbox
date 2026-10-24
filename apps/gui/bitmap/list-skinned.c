@@ -306,7 +306,7 @@ bool skinlist_draw(struct screen *display, struct gui_synclist *list)
         vp.width = SCROLLBAR_WIDTH;
         vp.height = listcfg[screen]->height * display_lines;
         if (list->scrollbar == SCROLLBAR_RIGHT)
-            vp.x = parent->x + parent->width - SCROLLBAR_WIDTH - 8; /* 8px margin, in line with the player frames */
+            vp.x = parent->x + parent->width - SCROLLBAR_WIDTH - 6; /* 6px margin: right edge on x=313 with the battery, mode icons and bar */
         display->set_viewport(&vp);
 #if LCD_DEPTH >= 16
         {   /* gilt: dark rim, lit top/left, gold bottom/right, dark inside; gold thumb with a lit edge */
