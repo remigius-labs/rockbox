@@ -267,10 +267,11 @@ bool skinlist_draw(struct screen *display, struct gui_synclist *list)
                 skin_viewport->vp.y = parent->y + original_y +
                                    (listcfg[screen]->height*cur_line);
             }
-            /* RPod: with a scrollbar, rows (and the gold selector) stop 4px before it so it stands alone */
+            /* RPod: with a scrollbar, rows (and the gold selector) stop 6px before it: the same gap as
+             * between the scrollbar and the screen edge */
             if (needs_scrollbar[screen] && list->scrollbar == SCROLLBAR_RIGHT)
             {
-                int limit = parent->x + parent->width - SCROLLBAR_WIDTH - 6 - 4;
+                int limit = parent->x + parent->width - SCROLLBAR_WIDTH - 6 - 6;
                 if (skin_viewport->vp.x + skin_viewport->vp.width > limit)
                     skin_viewport->vp.width = MAX(0, limit - skin_viewport->vp.x);
             }
@@ -318,7 +319,7 @@ bool skinlist_draw(struct screen *display, struct gui_synclist *list)
         vp.width = SCROLLBAR_WIDTH;
         vp.height = listcfg[screen]->height * display_lines;
         if (list->scrollbar == SCROLLBAR_RIGHT)
-            vp.x = parent->x + parent->width - SCROLLBAR_WIDTH - 6; /* 6px margin (rows stop 4px before it, above): right edge on x=313 with the battery, mode icons and bar */
+            vp.x = parent->x + parent->width - SCROLLBAR_WIDTH - 6; /* 6px margin (rows stop 6px before it, above): right edge on x=313 with the battery, mode icons and bar */
         display->set_viewport(&vp);
 #if LCD_DEPTH >= 16
         {   /* gilt: dark rim, lit top/left, gold bottom/right, dark inside; gold thumb with a lit edge */
