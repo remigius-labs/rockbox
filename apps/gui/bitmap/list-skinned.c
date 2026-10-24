@@ -393,6 +393,8 @@ static void rich_draw(struct screen *display, struct gui_synclist *list)
             display->set_foreground(HIc);
             display->hline(tx - 1, tx + THUMB, ty - 1);
             display->vline(tx - 1, ty - 1, ty + THUMB);
+            if (t->state != 1)  /* no cover: the monk from the theme, like Now Playing */
+                t = get_thumb("/.rockbox/wps/Hermit/noart-32.bmp");
             if (t->state == 1)
                 display->bitmap(t->px, tx + (THUMB - t->w) / 2, ty + (THUMB - t->h) / 2, t->w, t->h);
             else
