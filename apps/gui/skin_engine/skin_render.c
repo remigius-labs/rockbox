@@ -822,6 +822,11 @@ void skin_render_viewport(struct skin_element* viewport, struct gui_wps *gwps,
                 update_all = true;
         }
 #endif
+        /* RPod: list rows always write every line. A line holding only a %?Lc conditional and
+         * images is otherwise skipped when the conditional matches the row drawn before it (its
+         * last value is shared by all rows), and the selected row then misses its style fill */
+        if (skinlist_force_lines)
+            needs_update = true;
         /* only update if the line needs to be, and there is something to write */
         if (refresh_type && (needs_update || update_all))
         {
