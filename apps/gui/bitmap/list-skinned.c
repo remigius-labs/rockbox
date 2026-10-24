@@ -48,9 +48,10 @@ static struct listitem_viewport_cfg *listcfg[NB_SCREENS] = {NULL};
 bool skinlist_force_lines = false;
 bool skinlist_letterpress = false;
 bool skin_gilt_text = false;
-#define RICH_H  44   /* RPod album rows: row height and cover size */
+#define RICH_MIN_H 40   /* RPod album rows: smallest row height (rows share the area evenly) and cover size */
 #define THUMB   32
 static bool rich_active(struct gui_synclist *list);
+static int rich_rows(const struct viewport *vp) { return MAX(1, vp->height / RICH_MIN_H); }
 static struct skin_viewport selected_extra[NB_SCREENS]; /* the selected row's other pieces */
 
 /* RPod: true for the viewports of the selected row (line.c draws its bar see-through) */
@@ -156,7 +157,7 @@ int skinlist_get_line_count(enum screen_type screen, struct gui_synclist *list)
     if (!skinlist_is_configured(screen, list))
         return -1;
     if (rich_active(list))
-        return parent->height / RICH_H;
+        return rich_rows(parent);
     if (listcfg[screen]->tile == true)
     {
         int rows = (parent->height / listcfg[screen]->height);
@@ -349,7 +350,8 @@ static void rich_draw(struct screen *display, struct gui_synclist *list)
 {
     const int screen = display->screen_type;
     struct viewport *parent = list->parent[screen];
-    const int rows = parent->height / RICH_H;
+    const int rows = rich_rows(parent);
+    const int RICH_H = parent->height / rows;   /* fill the area: no leftover strip at the bottom */
     const int start = list->start_item[screen];
     const bool sb = list->scrollbar != SCROLLBAR_OFF && list->nb_items > rows;
     const int right = parent->width - (sb ? SCROLLBAR_WIDTH + 6 + 6 : 0);
