@@ -763,7 +763,7 @@ MAKE_MENU(settings_menu_item, ID2P(LANG_GENERAL_SETTINGS), 0,
 #ifdef HAVE_TAGCACHE
           &autoresume_menu,
 #endif
-          &browse_langs, &voice_settings_menu,
+          &browse_langs, /* RPod: Voice hidden */
           );
 /*    SETTINGS MENU                */
 /***********************************/
