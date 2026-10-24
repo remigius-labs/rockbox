@@ -41,11 +41,16 @@
 #include "skin_engine/skin_engine.h"
 #include "skin_engine/skin_display.h"
 #include "appevents.h"
+#include "bmp.h"
+#include "icon.h"
 
 static struct listitem_viewport_cfg *listcfg[NB_SCREENS] = {NULL};
 bool skinlist_force_lines = false;
 bool skinlist_letterpress = false;
 bool skin_gilt_text = false;
+#define RICH_H  44   /* RPod album rows: row height and cover size */
+#define THUMB   32
+static bool rich_active(struct gui_synclist *list);
 static struct skin_viewport selected_extra[NB_SCREENS]; /* the selected row's other pieces */
 
 /* RPod: true for the viewports of the selected row (line.c draws its bar see-through) */
@@ -150,6 +155,8 @@ int skinlist_get_line_count(enum screen_type screen, struct gui_synclist *list)
     struct viewport *parent = (list->parent[screen]);
     if (!skinlist_is_configured(screen, list))
         return -1;
+    if (rich_active(list))
+        return parent->height / RICH_H;
     if (listcfg[screen]->tile == true)
     {
         int rows = (parent->height / listcfg[screen]->height);
@@ -198,6 +205,236 @@ bool skinlist_get_item(struct screen *display, struct gui_synclist *list, int x,
     return true;
 }
 
+static void rpod_scrollbar(struct screen *display, struct gui_synclist *list, struct viewport *parent,
+                           int display_lines, int line_h, int list_start_item)
+{
+/* RPod: draw the built-in list scrollbar (scrollbar / scrollbar width settings) on skinned
+     * lists too, only when the list is longer than the screen, like plain lists do */
+    if (list->scrollbar != SCROLLBAR_OFF && list->nb_items > display_lines)
+    {
+        struct viewport vp = *parent;
+        vp.width = SCROLLBAR_WIDTH;
+        vp.height = line_h * display_lines;
+        if (list->scrollbar == SCROLLBAR_RIGHT)
+            vp.x = parent->x + parent->width - SCROLLBAR_WIDTH - 6; /* 6px margin (rows stop 6px before it, above): right edge on x=313 with the battery, mode icons and bar */
+        display->set_viewport(&vp);
+#if LCD_DEPTH >= 16
+        {   /* gilt: dark rim, lit top/left, gold bottom/right, dark inside; gold thumb with a lit edge */
+            const unsigned low = LCD_RGBPACK(59, 42, 20), gold = LCD_RGBPACK(201, 162, 79),
+                           hi = LCD_RGBPACK(240, 212, 136), inside = LCD_RGBPACK(26, 18, 11);
+            const unsigned old_fg = display->get_foreground();
+            int w = vp.width, h = vp.height;
+            display->set_drawmode(DRMODE_SOLID);
+            display->set_foreground(low);    display->drawrect(0, 0, w, h);
+            display->set_foreground(gold);   display->drawrect(1, 1, w - 2, h - 2);
+            display->set_foreground(hi);     display->hline(1, w - 2, 1); display->vline(1, 1, h - 2);
+            display->set_foreground(inside); display->fillrect(2, 2, w - 4, h - 4);
+            int track = h - 6;
+            int top = 3 + track * list_start_item / list->nb_items;
+            int size = track * display_lines / list->nb_items;
+            if (size < 4) size = 4;
+            if (top + size > 3 + track) top = 3 + track - size;
+            display->set_foreground(gold);   display->fillrect(3, top, w - 6, size);
+            display->set_foreground(hi);     display->hline(3, w - 4, top); display->vline(3, top, top + size - 1);
+            display->set_foreground(old_fg);
+        }
+#else
+        gui_scrollbar_draw(display, (list->scrollbar == SCROLLBAR_LEFT) ? 0 : 1, 0,
+                           SCROLLBAR_WIDTH - 1, vp.height, list->nb_items,
+                           list_start_item, list_start_item + display_lines, VERTICAL);
+#endif
+    }
+}
+
+
+/* ---- RPod: album covers while browsing ---------------------------------------------------
+ * In the file browser, a folder whose sub-folders hold a cover.32x32.bmp (an artist's albums)
+ * is drawn as tall rows: the cover in a gilt frame, the album name beside it. Only the rows on
+ * screen load their cover, and the last few stay in memory. Song lists stay normal rows. */
+static struct gui_synclist *rich_list;
+static bool (*rich_item_dir)(int item, char *buf, size_t sz);
+static const char *(*rich_key)(void);
+static char rich_last_key[MAX_PATH];
+static int rich_last_n = -1;
+static bool rich_on;
+
+void rpod_rich_set(struct gui_synclist *list, bool (*item_dir)(int, char *, size_t),
+                   const char *(*key)(void))
+{
+    rich_list = list;
+    rich_item_dir = item_dir;
+    rich_key = key;
+    rich_last_n = -1;
+}
+
+static bool thumb_path(int item, char *p, size_t sz)
+{
+    char d[MAX_PATH];
+    if (!rich_item_dir || !rich_item_dir(item, d, sizeof(d)))
+        return false;
+    snprintf(p, sz, "%s/cover.%dx%d.bmp", d, THUMB, THUMB);
+    return true;
+}
+
+static bool rich_active(struct gui_synclist *list)
+{
+    if (!rich_list || list != rich_list || !rich_item_dir)
+        return false;
+    const char *k = rich_key ? rich_key() : "";
+    if (rich_last_n == list->nb_items && !strcmp(k, rich_last_key))
+        return rich_on;
+    strlcpy(rich_last_key, k, sizeof(rich_last_key));
+    rich_last_n = list->nb_items;
+    rich_on = false;
+    for (int i = 0; i < list->nb_items && i < 4; i++)  /* an album list: one of the first folders has a cover */
+    {
+        char p[MAX_PATH];
+        if (thumb_path(i, p, sizeof(p)) && file_exists(p))
+        {
+            rich_on = true;
+            break;
+        }
+    }
+    return rich_on;
+}
+
+struct thumb { char path[MAX_PATH]; int state; unsigned age; int w, h; fb_data px[THUMB*THUMB]; };
+static struct thumb thumbs[6];  /* state: 0 empty, 1 loaded, 2 no cover */
+static unsigned thumb_clock;
+
+static struct thumb *get_thumb(const char *p)
+{
+    struct thumb *old = &thumbs[0];
+    for (unsigned i = 0; i < ARRAYLEN(thumbs); i++)
+    {
+        if (thumbs[i].state && !strcmp(thumbs[i].path, p))
+        {
+            thumbs[i].age = ++thumb_clock;
+            return &thumbs[i];
+        }
+        if (thumbs[i].age < old->age)
+            old = &thumbs[i];
+    }
+    struct bitmap bm;
+    memset(&bm, 0, sizeof(bm));
+    bm.data = (unsigned char *)old->px;
+    int r = read_bmp_file(p, &bm, sizeof(old->px), FORMAT_NATIVE, NULL);
+    strlcpy(old->path, p, sizeof(old->path));
+    old->state = (r > 0 && bm.width <= THUMB && bm.height <= THUMB) ? 1 : 2;
+    old->w = bm.width;
+    old->h = bm.height;
+    old->age = ++thumb_clock;
+    return old;
+}
+
+#if LCD_DEPTH == 16 && LCD_PIXELFORMAT == RGB565
+static void rich_wash(struct viewport *vp, int x0, int y0, int w, int h)
+{   /* the see-through gold of a selected row, 55% gold over the backdrop */
+    const fb_data *bd = lcd_get_backdrop();
+    const unsigned g = LCD_RGBPACK(201, 162, 79);
+    const unsigned gr = (g >> 11) & 0x1f, gg = (g >> 5) & 0x3f, gb = g & 0x1f;
+    for (int y = y0; y < y0 + h && vp->y + y < LCD_HEIGHT; y++)
+        for (int x = x0; x < x0 + w && vp->x + x < LCD_WIDTH; x++)
+        {
+            unsigned px = bd ? bd[(vp->y + y) * LCD_WIDTH + vp->x + x] : 0;
+            unsigned r = ((((px >> 11) & 0x1f) * 115) + gr * 141) >> 8;
+            unsigned gg2 = ((((px >> 5) & 0x3f) * 115) + gg * 141) >> 8;
+            unsigned b = (((px & 0x1f) * 115) + gb * 141) >> 8;
+            *FBADDR(vp->x + x, vp->y + y) = (r << 11) | (gg2 << 5) | b;
+        }
+}
+#endif
+
+static void rich_draw(struct screen *display, struct gui_synclist *list)
+{
+    const int screen = display->screen_type;
+    struct viewport *parent = list->parent[screen];
+    const int rows = parent->height / RICH_H;
+    const int start = list->start_item[screen];
+    const bool sb = list->scrollbar != SCROLLBAR_OFF && list->nb_items > rows;
+    const int right = parent->width - (sb ? SCROLLBAR_WIDTH + 6 + 6 : 0);
+    const unsigned LOWc = LCD_RGBPACK(59, 42, 20), GOLDc = LCD_RGBPACK(201, 162, 79),
+                   HIc = LCD_RGBPACK(240, 212, 136), DARKc = LCD_RGBPACK(18, 13, 10),
+                   CREAMc = LCD_RGBPACK(232, 217, 181), SOFTc = LCD_RGBPACK(212, 175, 95);
+    char buf[MAX_PATH], p[MAX_PATH];
+
+    display->set_viewport(parent);
+    display->clear_viewport();
+    for (int r = 0; r < rows; r++)
+    {
+        int item = start + r;
+        if (item >= list->nb_items)
+            break;
+        int y = r * RICH_H;
+        bool sel = item == list->selected_item;
+        display->set_viewport(parent);
+#if LCD_DEPTH == 16 && LCD_PIXELFORMAT == RGB565
+        if (sel && screen == SCREEN_MAIN)
+        {
+            rich_wash(parent, 0, y, right, RICH_H);
+            display->set_drawmode(DRMODE_SOLID);
+            display->set_foreground(LOWc);
+            display->hline(0, right - 1, y);
+        }
+#endif
+        int tx = 6, ty = y + (RICH_H - THUMB) / 2, text_x;
+        if (thumb_path(item, p, sizeof(p)))
+        {
+            struct thumb *t = get_thumb(p);
+            display->set_drawmode(DRMODE_SOLID);
+            display->set_foreground(LOWc);  display->drawrect(tx - 2, ty - 2, THUMB + 4, THUMB + 4);
+            display->set_foreground(GOLDc); display->drawrect(tx - 1, ty - 1, THUMB + 2, THUMB + 2);
+            display->set_foreground(HIc);
+            display->hline(tx - 1, tx + THUMB, ty - 1);
+            display->vline(tx - 1, ty - 1, ty + THUMB);
+            if (t->state == 1)
+                display->bitmap(t->px, tx + (THUMB - t->w) / 2, ty + (THUMB - t->h) / 2, t->w, t->h);
+            else
+            {
+                display->set_foreground(DARKc);
+                display->fillrect(tx, ty, THUMB, THUMB);
+            }
+            text_x = tx + THUMB + 10;
+        }
+        else
+        {
+            if (list->callback_get_item_icon && global_settings.show_icons)
+            {
+                enum themable_icons icon = list->callback_get_item_icon(item, list->data);
+                if (icon != Icon_NOICON)
+                    screen_put_iconxy(display, 1, y + (RICH_H - get_icon_height(screen)) / 2, icon);
+            }
+            text_x = 18;
+        }
+        const char *name = list->callback_get_item_name(item, list->data, buf, sizeof(buf));
+        if (!name)
+            continue;
+        int h = display->getcharheight();
+        struct viewport tv = *parent;   /* clip the name to its column */
+        tv.x += text_x;
+        tv.width = MAX(1, right - text_x - 4);
+        tv.y += y + (RICH_H - h) / 2;
+        tv.height = h + 1;
+        display->set_viewport(&tv);
+        display->set_drawmode(DRMODE_FG);
+        if (sel)
+        {
+            display->set_foreground(SOFTc);
+            display->putsxy(0, 1, name);
+            display->set_foreground(DARKc);
+        }
+        else
+            display->set_foreground(CREAMc);
+        display->putsxy(0, 0, name);
+        display->set_viewport(parent);
+        display->set_foreground(CREAMc);
+        display->set_drawmode(DRMODE_SOLID);
+    }
+    rpod_scrollbar(display, list, parent, rows, RICH_H, start);
+    display->set_viewport(parent);
+    display->update_viewport();
+}
+
 bool skinlist_draw(struct screen *display, struct gui_synclist *list)
 {
     int cur_line, display_lines;
@@ -208,6 +445,11 @@ bool skinlist_draw(struct screen *display, struct gui_synclist *list)
     struct gui_wps wps;
     if (!skinlist_is_configured(screen, list))
         return false;
+    if (rich_active(list))
+    {
+        rich_draw(display, list);
+        return true;
+    }
 
     current_list = list;
     wps.display = display;
@@ -325,42 +567,7 @@ bool skinlist_draw(struct screen *display, struct gui_synclist *list)
     }
     current_column = -1;
     current_row = -1;
-    /* RPod: draw the built-in list scrollbar (scrollbar / scrollbar width settings) on skinned
-     * lists too, only when the list is longer than the screen, like plain lists do */
-    if (list->scrollbar != SCROLLBAR_OFF && list->nb_items > display_lines)
-    {
-        struct viewport vp = *parent;
-        vp.width = SCROLLBAR_WIDTH;
-        vp.height = listcfg[screen]->height * display_lines;
-        if (list->scrollbar == SCROLLBAR_RIGHT)
-            vp.x = parent->x + parent->width - SCROLLBAR_WIDTH - 6; /* 6px margin (rows stop 6px before it, above): right edge on x=313 with the battery, mode icons and bar */
-        display->set_viewport(&vp);
-#if LCD_DEPTH >= 16
-        {   /* gilt: dark rim, lit top/left, gold bottom/right, dark inside; gold thumb with a lit edge */
-            const unsigned low = LCD_RGBPACK(59, 42, 20), gold = LCD_RGBPACK(201, 162, 79),
-                           hi = LCD_RGBPACK(240, 212, 136), inside = LCD_RGBPACK(26, 18, 11);
-            const unsigned old_fg = display->get_foreground();
-            int w = vp.width, h = vp.height;
-            display->set_drawmode(DRMODE_SOLID);
-            display->set_foreground(low);    display->drawrect(0, 0, w, h);
-            display->set_foreground(gold);   display->drawrect(1, 1, w - 2, h - 2);
-            display->set_foreground(hi);     display->hline(1, w - 2, 1); display->vline(1, 1, h - 2);
-            display->set_foreground(inside); display->fillrect(2, 2, w - 4, h - 4);
-            int track = h - 6;
-            int top = 3 + track * list_start_item / list->nb_items;
-            int size = track * display_lines / list->nb_items;
-            if (size < 4) size = 4;
-            if (top + size > 3 + track) top = 3 + track - size;
-            display->set_foreground(gold);   display->fillrect(3, top, w - 6, size);
-            display->set_foreground(hi);     display->hline(3, w - 4, top); display->vline(3, top, top + size - 1);
-            display->set_foreground(old_fg);
-        }
-#else
-        gui_scrollbar_draw(display, (list->scrollbar == SCROLLBAR_LEFT) ? 0 : 1, 0,
-                           SCROLLBAR_WIDTH - 1, vp.height, list->nb_items,
-                           list_start_item, list_start_item + display_lines, VERTICAL);
-#endif
-    }
+    rpod_scrollbar(display, list, parent, display_lines, listcfg[screen]->height, list_start_item);
     display->set_viewport(parent);
     display->update_viewport();
     current_drawing_line = list->selected_item;

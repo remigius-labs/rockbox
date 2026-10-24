@@ -147,6 +147,28 @@ static bool ext_stripit(bool isdir, int attr, int dirfilter)
     return false;
 }
 
+/* RPod: album covers while browsing. The folder behind a list row, for list-skinned.c */
+static bool tree_rich_item_dir(int item, char *buf, size_t sz)
+{
+#ifdef HAVE_TAGCACHE
+    if (*tc.dirfilter == SHOW_ID3DB)
+        return false;
+#endif
+    struct entry *e = tree_get_entry_at(&tc, item);
+    if (!e || !(e->attr & ATTR_DIRECTORY))
+        return false;
+    if (tc.currdir[0] == '/' && tc.currdir[1] == '\0')
+        snprintf(buf, sz, "/%s", e->name);
+    else
+        snprintf(buf, sz, "%s/%s", tc.currdir, e->name);
+    return true;
+}
+
+static const char *tree_rich_key(void)
+{
+    return tc.currdir;
+}
+
 static const char* tree_get_filename(int selected_item, void *data,
                                      char *buffer, size_t buffer_len)
 {
@@ -744,6 +766,7 @@ static int dirbrowse(void)
 #endif
 
     start_wps = false;
+    rpod_rich_set(&tree_lists, tree_rich_item_dir, tree_rich_key);
     numentries = update_dir();
     reload_dir = false;
     if (numentries == -1)

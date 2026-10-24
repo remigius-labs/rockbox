@@ -246,6 +246,9 @@ enum themable_icons skinlist_get_item_icon(int offset, bool wrap);
 bool skinlist_needs_scrollbar(enum screen_type screen);
 void skinlist_get_scrollbar(int* nb_item, int* first_shown, int* last_shown);
 int skinlist_get_line_count(enum screen_type screen, struct gui_synclist *list);
+/* RPod: album covers while browsing (list-skinned.c); tree.c hands in its list and callbacks */
+void rpod_rich_set(struct gui_synclist *list, bool (*item_dir)(int, char *, size_t),
+                   const char *(*key)(void));
 #endif /* !PLUGIN) */
 
 #if  defined(HAVE_TOUCHSCREEN)
