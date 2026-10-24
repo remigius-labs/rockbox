@@ -31,7 +31,7 @@
 #define BATT_MAXRUNTIME (10 * 60) /* maximum runtime with full battery in
                                      minutes */
 /* Number of millivolts to discharge the battery every second */
-#define BATT_DISCHARGE_STEP ((BATT_MAXMVOLT - BATT_MINMVOLT) / 100)
+#define BATT_DISCHARGE_STEP 0 /* RPod: the sim battery stays full */
 /* Number of millivolts to charge the battery every second */
 #define BATT_CHARGE_STEP (BATT_DISCHARGE_STEP * 2)
 #if CONFIG_CHARGING >= CHARGING_MONITOR
