@@ -380,7 +380,7 @@ static void style_line(struct screen *display,
                 const fb_data *bd = lcd_get_backdrop();
                 unsigned g = display->get_foreground();
                 unsigned gr = (g >> 11) & 0x1f, gg = (g >> 5) & 0x3f, gb = g & 0x1f;
-                for (int yy = y; yy < y + bar_height && vp->y + yy < LCD_HEIGHT; yy++)
+                for (int yy = y; yy < y + bar_height && yy < vp->height && vp->y + yy < LCD_HEIGHT; yy++)
                 {
                     fb_data *dst = FBADDR(vp->x + x, vp->y + yy);
                     const fb_data *src = bd + (vp->y + yy) * LCD_WIDTH + vp->x + x;
