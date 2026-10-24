@@ -58,17 +58,13 @@ static void talk_text_message(const struct text_message * message, bool enqueue)
     }
 }
 
-/* RPod: one text line on its own dark block, so it reads over the painting */
+/* RPod: one text line, 5px in, straight onto the darkened painting */
 static void put_dark_line(struct screen *display, int line, const char *text)
 {
 #if LCD_DEPTH == 16
     int w, h;
     display->getstringsize(text, &w, &h);
-    unsigned fg = display->get_foreground();
-    display->set_drawmode(DRMODE_SOLID);
-    display->set_foreground(LCD_RGBPACK(18, 13, 10));
-    display->fillrect(0, line * h, w + 10, h);
-    display->set_foreground(fg);
+    (void)w;
     display->set_drawmode(DRMODE_FG);
     display->putsxy(5, line * h, text);
 #else
@@ -111,7 +107,7 @@ static void gui_yesno_draw(struct gui_yesno * yn)
     display->fillrect(0, 0, vp->width, vp->height);
     vp->drawmode = oldmode;
 #if LCD_DEPTH == 16 && LCD_PIXELFORMAT == RGB565
-    /* dim the backdrop behind the question to ~35%, like the Now Playing panel */
+    /* dim the backdrop behind the question to ~15%, dark enough to read the text on */
     if (display->screen_type == SCREEN_MAIN)
     {
         fb_data *row = FBADDR(vp->x, vp->y);
@@ -119,9 +115,9 @@ static void gui_yesno_draw(struct gui_yesno * yn)
             for (int x = 0; x < vp->width; x++)
             {
                 unsigned p = row[x];
-                unsigned r = ((p >> 11) & 0x1f) * 89 >> 8;
-                unsigned g = ((p >> 5) & 0x3f) * 89 >> 8;
-                unsigned b = (p & 0x1f) * 89 >> 8;
+                unsigned r = ((p >> 11) & 0x1f) * 40 >> 8;
+                unsigned g = ((p >> 5) & 0x3f) * 40 >> 8;
+                unsigned b = (p & 0x1f) * 40 >> 8;
                 row[x] = (r << 11) | (g << 5) | b;
             }
         /* text straight onto the dimmed backdrop, no undimmed strip behind each line */
