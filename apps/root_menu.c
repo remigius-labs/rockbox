@@ -497,7 +497,7 @@ static int item_callback(int action,
                          struct gui_synclist *this_list);
 
 MENUITEM_RETURNVALUE(shortcut_menu, ID2P(LANG_SHORTCUTS), GO_TO_SHORTCUTMENU,
-                        NULL, Icon_Bookmark);
+                        NULL, Icon_Preset);
 
 MENUITEM_RETURNVALUE(file_browser, ID2P(LANG_DIR_BROWSER), GO_TO_FILEBROWSER,
                         NULL, Icon_file_view_menu);
