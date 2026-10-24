@@ -250,6 +250,19 @@ static void gui_quickscreen_draw(const struct gui_quickscreen *qs,
         display->mono_bitmap(bitmap_icons_7x8[Icon_UpArrow],
             (vp_icons->width/2) - 4, 0, 7, 8);
     }
+#if LCD_DEPTH == 16
+    /* RPod: the theme's gilt arrows (iconset: Cursor = right, Reverse_Cursor = left) */
+    if (display->screen_type == SCREEN_MAIN)
+    {
+        int iw = get_icon_width(SCREEN_MAIN), ih = get_icon_height(SCREEN_MAIN);
+        if (qs->items[QUICKSCREEN_RIGHT] != NULL)
+            screen_put_iconxy(display, vp_icons->width - iw, (vp_icons->height - ih) / 2, Icon_Cursor);
+        if (qs->items[QUICKSCREEN_LEFT] != NULL)
+            screen_put_iconxy(display, 0, (vp_icons->height - ih) / 2, Icon_Reverse_Cursor);
+    }
+    else
+#endif
+    {
     if (qs->items[QUICKSCREEN_RIGHT] != NULL)
     {
         display->mono_bitmap(bitmap_icons_7x8[Icon_FastForward],
@@ -259,6 +272,7 @@ static void gui_quickscreen_draw(const struct gui_quickscreen *qs,
     {
         display->mono_bitmap(bitmap_icons_7x8[Icon_FastBackward],
             0, (vp_icons->height/2) - 4, 7, 8);
+    }
     }
     if (qs->items[QUICKSCREEN_BOTTOM] != NULL)
     {
