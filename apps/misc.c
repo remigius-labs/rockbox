@@ -359,12 +359,11 @@ static void shutdown_message(const char *fmt, ...)
     vsnprintf(msg, sizeof(msg), fmt, ap);
     va_end(ap);
 #if LCD_DEPTH == 16 && LCD_PIXELFORMAT == RGB565
-    struct viewport vp;
-    viewport_set_fullscreen(&vp, SCREEN_MAIN);
-    struct viewport *last_vp = lcd_set_viewport(&vp);
+    /* the default full-screen viewport: a fresh struct here left its buffer pointer unset */
+    struct viewport *last_vp = lcd_set_viewport(NULL);
     lcd_clear_viewport();
     fb_data *row = FBADDR(0, 0);
-    for (int y = 0; y < LCD_HEIGHT; y++, row += vp.buffer->stride)
+    for (int y = 0; y < LCD_HEIGHT; y++, row += lcd_current_viewport->buffer->stride)
         for (int x = 0; x < LCD_WIDTH; x++)
         {
             unsigned px = row[x];
