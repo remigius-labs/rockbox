@@ -64,6 +64,8 @@
 #include "pathfuncs.h"
 #include "shortcuts.h"
 #include "misc.h"
+#include "powermgmt.h"
+#include "powermgmt.h"
 #ifdef HAVE_DISK_STORAGE
 #include "storage.h"
 #endif
@@ -1114,24 +1116,39 @@ static int onplaymenu_callback(int action,
                                const struct menu_item_ex *this_item,
                                struct gui_synclist *this_list);
 
+/* RPod: sleep, right in the Now Playing context menu */
+static int sleep_set(void *param)
+{
+    intptr_t minutes = (intptr_t)param;
+    audio_set_pause_at_track_end(minutes < 0);
+    set_sleeptimer_duration(minutes > 0 ? minutes : 0);
+    if (minutes > 0)
+        splashf(HZ, "Sleep in %d min", (int)minutes);
+    else if (minutes < 0)
+        splash(HZ, "Pause at end of track");
+    else
+        splash(HZ, "Sleep off");
+    return 0;
+}
+MENUITEM_FUNCTION_W_PARAM(sleep_15, 0, "15 min", sleep_set, (void*)15, NULL, Icon_NOICON);
+MENUITEM_FUNCTION_W_PARAM(sleep_30, 0, "30 min", sleep_set, (void*)30, NULL, Icon_NOICON);
+MENUITEM_FUNCTION_W_PARAM(sleep_60, 0, "60 min", sleep_set, (void*)60, NULL, Icon_NOICON);
+MENUITEM_FUNCTION_W_PARAM(sleep_track, 0, "End of track", sleep_set, (void*)-1, NULL, Icon_NOICON);
+MENUITEM_FUNCTION_W_PARAM(sleep_off, 0, "Off", sleep_set, (void*)0, NULL, Icon_NOICON);
+MAKE_ONPLAYMENU(sleep_menu, "Sleep", NULL, Icon_Menu_setting,
+                &sleep_15, &sleep_30, &sleep_60, &sleep_track, &sleep_off);
+
 /* used when onplay() is called in the CONTEXT_WPS context */
 MAKE_ONPLAYMENU( wps_onplay_menu, ID2P(LANG_ONPLAY_MENU_TITLE),
            onplaymenu_callback, Icon_Audio,
-           &wps_playlist_menu, &cat_playlist_menu,
+           /* RPod: trimmed to what gets used; Sleep first */
+           &sleep_menu, &cat_playlist_menu,
            &sound_settings, &playback_settings,
 #ifdef HAVE_TAGCACHE
            &rating_item,
 #endif
            &bookmark_menu,
-           &plugin_item,
-           &browse_id3_item, &list_viewers_item,
            &delete_file_item, &view_cue_item,
-#ifdef HAVE_PITCHCONTROL
-           &pitch_menu,
-#endif
-#ifdef HAVE_ALBUMART
-           &view_album_art_item,
-#endif
          );
 
 int sort_playlists_callback(int action,

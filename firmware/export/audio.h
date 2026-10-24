@@ -52,6 +52,9 @@ void audio_stop(void);
 /* Stops audio from serving playback and frees resources*/
 void audio_hard_stop(void);
 void audio_pause(void);
+/* RPod: pause once the current track ends by itself (sleep: end of track) */
+void audio_set_pause_at_track_end(bool on);
+bool audio_get_pause_at_track_end(void);
 void audio_resume(void);
 void audio_next(void);
 void audio_prev(void);

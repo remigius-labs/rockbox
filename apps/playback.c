@@ -1397,10 +1397,30 @@ static void audio_playlist_track_finish(void)
     }
 }
 
+/* RPod: sleep "end of track" */
+static bool pause_at_track_end = false;
+
+void audio_set_pause_at_track_end(bool on)
+{
+    pause_at_track_end = on;
+}
+
+bool audio_get_pause_at_track_end(void)
+{
+    return pause_at_track_end;
+}
+
 /* Announce the beginning of the new track */
 static void audio_playlist_track_change(void)
 {
     struct mp3entry *id3 = valid_mp3entry(id3_get(PLAYING_ID3));
+
+    /* RPod: the track ended by itself, so pause at the start of the next one */
+    if (pause_at_track_end && (track_event_flags & TEF_AUTO_SKIP))
+    {
+        pause_at_track_end = false;
+        audio_queue_post(Q_AUDIO_PAUSE, true);
+    }
 
     if (id3)
     {
