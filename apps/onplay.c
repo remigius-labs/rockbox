@@ -1143,9 +1143,9 @@ MAKE_ONPLAYMENU( wps_onplay_menu, ID2P(LANG_ONPLAY_MENU_TITLE),
            onplaymenu_callback, Icon_Audio,
            /* RPod: trimmed to what gets used; row by row the same icons as the main menu
             * (play, bookmark, note, sun/moon, folder/stack); Rating and Cuesheet only show when they apply */
+           &sleep_menu, &cat_playlist_menu,
            &playback_settings, &bookmark_menu,
-           &sound_settings, &sleep_menu,
-           &cat_playlist_menu, &delete_file_item,
+           &sound_settings, &delete_file_item,
 #ifdef HAVE_TAGCACHE
            &rating_item,
 #endif
