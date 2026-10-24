@@ -619,6 +619,22 @@ void write_line(struct screen *display, struct align_pos *format_align,
         display->put_line(0, line, linedes, "$t$*s$t$*s$t", left_width == 0 ? "" : left ,
                 center_xpos - left_width, center_width == 0 ? "" : center,
                 right_xpos - center_xpos - center_width, right_width == 0 ? "" : right);
+#if LCD_DEPTH >= 16
+        /* RPod: letterpress on the selected list row: a lit edge under each letter, then the
+         * letters again on top (the invert style draws text in the background colour) */
+        if (skinlist_letterpress && left_width)
+        {
+            unsigned fg = display->get_foreground();
+            unsigned text = display->get_background();
+            display->set_drawmode(DRMODE_FG);
+            display->set_foreground(LCD_RGBPACK(240, 212, 136));
+            display->putsxy(0, line + 1, left);
+            display->set_foreground(text);
+            display->putsxy(0, line, left);
+            display->set_foreground(fg);
+            display->set_drawmode(DRMODE_SOLID);
+        }
+#endif
     }
 }
 

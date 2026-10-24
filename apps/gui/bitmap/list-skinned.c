@@ -44,6 +44,7 @@
 
 static struct listitem_viewport_cfg *listcfg[NB_SCREENS] = {NULL};
 bool skinlist_force_lines = false;
+bool skinlist_letterpress = false;
 static struct gui_synclist *current_list;
 
 static int current_row;
@@ -290,9 +291,11 @@ bool skinlist_draw(struct screen *display, struct gui_synclist *list)
             if (children && *children)
             {
                 skinlist_force_lines = true;
+                skinlist_letterpress = is_selected && !extra;
                 skin_render_viewport(SKINOFFSETTOPTR(get_skin_buffer(wps.data), (intptr_t)children[0]),
                                      &wps, skin_viewport, SKIN_REFRESH_ALL);
                 skinlist_force_lines = false;
+                skinlist_letterpress = false;
             }
             wps_display_images(&wps, &skin_viewport->vp);
             /* force disableing scroll because it breaks later */

@@ -38,6 +38,7 @@ void wps_display_images(struct gui_wps *gwps, struct viewport* vp);
 
 
 extern bool skinlist_force_lines; /* RPod: set by list-skinned.c while drawing list rows */
+extern bool skinlist_letterpress; /* RPod: set while drawing the selected row's text */
 void skin_render_viewport(struct skin_element* viewport, struct gui_wps *gwps,
                         struct skin_viewport* skin_viewport, unsigned long refresh_type);
 
