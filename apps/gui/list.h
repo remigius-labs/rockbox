@@ -249,6 +249,9 @@ int skinlist_get_line_count(enum screen_type screen, struct gui_synclist *list);
 /* RPod: album covers while browsing (list-skinned.c); tree.c hands in its list and callbacks */
 void rpod_rich_set(struct gui_synclist *list, bool (*item_dir)(int, char *, size_t),
                    const char *(*key)(void));
+void rpod_cards_begin(struct gui_synclist *list, bool (*item_dir)(int, char *, size_t),
+                      const char *(*sub)(int, char *, size_t));
+void rpod_cards_end(void);
 #endif /* !PLUGIN) */
 
 #if  defined(HAVE_TOUCHSCREEN)

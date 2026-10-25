@@ -906,6 +906,144 @@ static int bookmark_list_voice_cb(int list_index, void* data)
     return 0;
 }
 
+
+/* RPod: each bookmark is one card, its album cover beside the name and the time line under it
+ * (list-skinned.c draws it). The list has one row per bookmark; these turn a row into the
+ * stock two-line callbacks above. */
+static struct bookmark_list *cards_bm;
+static struct { int item; bool ok; char dir[MAX_PATH]; } cards_dir[8];
+static int cards_dir_next;
+
+static bool cards_item_dir(int item, char *buf, size_t sz);
+
+/* the book: the name of the folder it plays from */
+static const char *cards_name(int item, void *data, char *buffer, size_t buffer_len)
+{
+    char dir[MAX_PATH];
+    if (cards_item_dir(item, dir, sizeof(dir)))
+    {
+        const char *slash = strrchr(dir, '/');
+        strmemccpy(buffer, slash ? slash + 1 : dir, buffer_len);
+        return buffer;
+    }
+    return get_bookmark_info(item * 2, data, buffer, buffer_len);
+}
+
+/* where in it: the time only */
+static const char *cards_sub(int item, char *buffer, size_t buffer_len)
+{
+    char fname[MAX_PATH];
+    struct resume_info resume_info;
+    int index = item;
+    if (cards_bm->show_dont_resume)
+    {
+        if (index == 0)
+            return NULL;
+        index--;
+    }
+    get_bookmark_info(item * 2, cards_bm, buffer, buffer_len); /* loads that part of the file */
+    if (index < cards_bm->start || index >= cards_bm->start + cards_bm->count
+        || !parse_bookmark(fname, sizeof(fname), cards_bm->items[index - cards_bm->start],
+                           &resume_info, true))
+        return NULL;
+    format_time(buffer, buffer_len, resume_info.resume_elapsed);
+    return buffer;
+}
+
+static int cards_voice(int item, void *data)
+{
+    return bookmark_list_voice_cb(item * 2, data);
+}
+
+static bool cards_find_dir(int item, char *dir, size_t sz)
+{
+    char tmp[MAX_PATH], fname[MAX_PATH];
+    struct resume_info resume_info;
+    int index = item;
+    if (cards_bm->show_dont_resume)
+    {
+        if (index == 0)
+            return false;
+        index--;
+    }
+    get_bookmark_info(item * 2, cards_bm, tmp, sizeof(tmp)); /* loads that part of the file */
+    if (index < cards_bm->start || index >= cards_bm->start + cards_bm->count)
+        return false;
+    if (!parse_bookmark(fname, sizeof(fname), cards_bm->items[index - cards_bm->start],
+                        &resume_info, false))
+        return false;
+    size_t len = strlen(global_temp_buffer);
+    if (len > 1 && global_temp_buffer[len - 1] == '/')
+    {   /* a folder bookmark: the album folder itself */
+        strmemccpy(dir, global_temp_buffer, MIN(sz, len));
+        return true;
+    }
+    /* a playlist: the folder of the track it stopped at */
+    char base[MAX_PATH];
+    strmemccpy(base, global_temp_buffer, sizeof(base));
+    char *slash = strrchr(base, '/');
+    if (!slash)
+        return false;
+    *slash = '\0';
+    int fd = open(global_temp_buffer, O_RDONLY);
+    if (fd < 0)
+        return false;
+    int n = 0;
+    bool found = false;
+    while (read_line(fd, tmp, sizeof(tmp)) > 0)
+    {
+        if (tmp[0] == '#' || tmp[0] == '\0')
+            continue;
+        if (n++ == resume_info.resume_index)
+        {
+            found = true;
+            break;
+        }
+    }
+    close(fd);
+    if (!found)
+        return false;
+    char *t = tmp;
+    if (!strncmp(t, "\xef\xbb\xbf", 3))
+        t += 3;
+    for (char *c = t; *c; c++)
+        if (*c == '\\')
+            *c = '/';
+    if (t[0] == '/')
+        strmemccpy(fname, t, sizeof(fname));
+    else
+        snprintf(fname, sizeof(fname), "%s/%s", base, t);
+    slash = strrchr(fname, '/');
+    if (!slash || slash == fname)
+        return false;
+    *slash = '\0';
+    strmemccpy(dir, fname, sz);
+    return true;
+}
+
+static bool cards_item_dir(int item, char *buf, size_t sz)
+{
+    for (unsigned i = 0; i < ARRAYLEN(cards_dir); i++)
+        if (cards_dir[i].item == item)
+        {
+            if (cards_dir[i].ok)
+                strmemccpy(buf, cards_dir[i].dir, sz);
+            return cards_dir[i].ok;
+        }
+    int slot = cards_dir_next++ % ARRAYLEN(cards_dir);
+    cards_dir[slot].item = item;
+    cards_dir[slot].ok = cards_find_dir(item, cards_dir[slot].dir, sizeof(cards_dir[slot].dir));
+    if (cards_dir[slot].ok)
+        strmemccpy(buf, cards_dir[slot].dir, sz);
+    return cards_dir[slot].ok;
+}
+
+static void cards_forget(void)
+{
+    for (unsigned i = 0; i < ARRAYLEN(cards_dir); i++)
+        cards_dir[i].item = -1;
+}
+
 /* ----------------------------------------------------------------------- */
 /* This function takes a location in a bookmark file and deletes that      */
 /* bookmark.                                                               */
@@ -987,11 +1125,14 @@ static int select_bookmark(const char* bookmark_file_name,
     bookmarks->show_playlist_name
         = (strcmp(bookmark_file_name, RECENT_BOOKMARK_FILE) == 0);
 
-    gui_synclist_init(&list, &get_bookmark_info,
-                      (void*) bookmarks, false, 2, NULL);
+    gui_synclist_init(&list, &cards_name,
+                      (void*) bookmarks, false, 1, NULL);
+    cards_bm = bookmarks;
+    cards_forget();
+    rpod_cards_begin(&list, cards_item_dir, cards_sub);
 
     if(global_settings.talk_menu)
-        gui_synclist_set_voice_callback(&list, bookmark_list_voice_cb);
+        gui_synclist_set_voice_callback(&list, cards_voice);
 
     while (!exit)
     {
@@ -1007,6 +1148,7 @@ static int select_bookmark(const char* bookmark_file_name,
                 splash(HZ, ID2P(LANG_BOOKMARK_LOAD_EMPTY));
                 remove(bookmark_file_name);
                 *selected_bookmark = NULL;
+                rpod_cards_end();
                 return BOOKMARK_FAIL;
             }
 
@@ -1016,13 +1158,14 @@ static int select_bookmark(const char* bookmark_file_name,
                 item++;
             }
 
-            gui_synclist_set_nb_items(&list, count * 2);
+            gui_synclist_set_nb_items(&list, count);
+            cards_forget();
 
             if (item >= count)
             {
                 /* Selected item has been deleted */
                 item = count - 1;
-                gui_synclist_select_item(&list, item * 2);
+                gui_synclist_select_item(&list, item);
             }
 
             buffer_bookmarks(bookmarks, bookmarks->start);
@@ -1035,7 +1178,7 @@ static int select_bookmark(const char* bookmark_file_name,
         }
 
         list_do_action(CONTEXT_BOOKMARKSCREEN, HZ / 2, &list, &action);
-        item = gui_synclist_get_sel_pos(&list) / 2;
+        item = gui_synclist_get_sel_pos(&list);
 
         if (bookmarks->show_dont_resume)
         {
@@ -1069,6 +1212,7 @@ static int select_bookmark(const char* bookmark_file_name,
             {
                 talk_shutup();
                 *selected_bookmark = bookmarks->items[item - bookmarks->start];
+                rpod_cards_end();
                 return BOOKMARK_SUCCESS;
             }
             exit = true;
@@ -1105,6 +1249,7 @@ static int select_bookmark(const char* bookmark_file_name,
 
     talk_shutup();
     *selected_bookmark = NULL;
+    rpod_cards_end();
     return ret;
 }
 

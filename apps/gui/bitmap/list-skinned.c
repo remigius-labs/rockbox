@@ -256,6 +256,8 @@ static void rpod_scrollbar(struct screen *display, struct gui_synclist *list, st
 static struct gui_synclist *rich_list;
 static bool (*rich_item_dir)(int item, char *buf, size_t sz);
 static const char *(*rich_key)(void);
+static const char *(*rich_sub)(int item, char *buf, size_t sz);
+static bool rich_forced;
 static char rich_last_key[MAX_PATH];
 static int rich_last_n = -1;
 static bool rich_on;
@@ -266,7 +268,31 @@ void rpod_rich_set(struct gui_synclist *list, bool (*item_dir)(int, char *, size
     rich_list = list;
     rich_item_dir = item_dir;
     rich_key = key;
+    rich_sub = NULL;
+    rich_forced = false;
     rich_last_n = -1;
+}
+
+/* RPod: a list that is always cards (bookmarks), with a second line under the name. The list
+ * that was set before comes back with rpod_cards_end() */
+static struct gui_synclist *saved_list;
+static bool (*saved_item_dir)(int, char *, size_t);
+static const char *(*saved_key)(void);
+
+void rpod_cards_begin(struct gui_synclist *list, bool (*item_dir)(int, char *, size_t),
+                      const char *(*sub)(int, char *, size_t))
+{
+    saved_list = rich_list;
+    saved_item_dir = rich_item_dir;
+    saved_key = rich_key;
+    rpod_rich_set(list, item_dir, NULL);
+    rich_sub = sub;
+    rich_forced = true;
+}
+
+void rpod_cards_end(void)
+{
+    rpod_rich_set(saved_list, saved_item_dir, saved_key);
 }
 
 static bool thumb_path(int item, char *p, size_t sz)
@@ -282,6 +308,8 @@ static bool rich_active(struct gui_synclist *list)
 {
     if (!rich_list || list != rich_list || !rich_item_dir)
         return false;
+    if (rich_forced)
+        return true;
     const char *k = rich_key ? rich_key() : "";
     if (rich_last_n == list->nb_items && !strcmp(k, rich_last_key))
         return rich_on;
@@ -344,6 +372,21 @@ static void rich_wash(struct viewport *vp, int x0, int y0, int w, int h)
             unsigned b = (((px & 0x1f) * 115) + gb * 141) >> 8;
             *FBADDR(vp->x + x, vp->y + y) = (r << 11) | (gg2 << 5) | b;
         }
+}
+#endif
+
+#if LCD_DEPTH == 16 && LCD_PIXELFORMAT == RGB565
+/* RPod: a selected card name too long for its column scrolls, plain dark letters on the wash */
+static struct viewport rich_sel_vp;
+static void rich_scroll_fn(struct scrollinfo *s)
+{
+    if (!s->line)
+        return;
+    rich_wash(s->vp, s->x, s->y, s->width, s->height);
+    lcd_set_drawmode(DRMODE_FG);
+    lcd_set_foreground(LCD_RGBPACK(18, 13, 10));
+    lcd_putsxy(s->x - s->offset, s->y, s->line);
+    lcd_set_drawmode(DRMODE_SOLID);
 }
 #endif
 
@@ -414,22 +457,46 @@ static void rich_draw(struct screen *display, struct gui_synclist *list)
         if (!name)
             continue;
         int h = display->getcharheight();
+        char sbuf[MAX_PATH];
+        const char *sub = rich_sub ? rich_sub(item, sbuf, sizeof(sbuf)) : NULL;
+        int lines = sub ? 2 : 1;
         struct viewport tv = *parent;   /* clip the name to its column */
         tv.x += text_x;
         tv.width = MAX(1, right - text_x - 4);
-        tv.y += y + 2 + (RICH_H - 2 - h) / 2;
+        tv.y += y + 2 + (RICH_H - 2 - h * lines) / 2;
         tv.height = h + 1;
         display->set_viewport(&tv);
         display->set_drawmode(DRMODE_FG);
-        if (sel)
+        int nw = 0;
+        display->getstringsize(name, &nw, NULL);
+#if LCD_DEPTH == 16 && LCD_PIXELFORMAT == RGB565
+        if (sel && rich_sub && screen == SCREEN_MAIN && nw > tv.width)
         {
-            display->set_foreground(SOFTc);
-            display->putsxy(0, 1, name);
+            rich_sel_vp = tv;
+            display->set_viewport(&rich_sel_vp);
             display->set_foreground(DARKc);
+            display->putsxy_scroll_func(0, 0, name, rich_scroll_fn, NULL, 0);
         }
         else
-            display->set_foreground(CREAMc);
-        display->putsxy(0, 0, name);
+#endif
+        {
+            if (sel)
+            {
+                display->set_foreground(SOFTc);
+                display->putsxy(0, 1, name);
+                display->set_foreground(DARKc);
+            }
+            else
+                display->set_foreground(CREAMc);
+            display->putsxy(0, 0, name);
+        }
+        if (sub)
+        {   /* the second line (a bookmark's time) */
+            tv.y += h;
+            display->set_viewport(&tv);
+            display->set_foreground(sel ? DARKc : CREAMc);
+            display->putsxy(0, 0, sub);
+        }
         display->set_viewport(parent);
         display->set_foreground(CREAMc);
         display->set_drawmode(DRMODE_SOLID);
