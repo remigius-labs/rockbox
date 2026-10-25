@@ -209,6 +209,39 @@ static int tree_get_filecolor(int selected_item, void * data)
 }
 #endif
 
+/* RPod: one gilt icon per kind of file. Text and other files use the
+ * Font and Voice slots of the iconset, which the RPod menus never show */
+#ifndef RPOD_FOLDER_ICON
+#define RPOD_FOLDER_ICON Icon_Folder
+#endif
+static enum themable_icons rpod_file_icon(const struct entry *entry)
+{
+    static const char * const text_ext[] = { "txt", "nfo", "md", "log", "cfg", "lrc" };
+    const char *ext;
+
+    switch (entry->attr & FILE_ATTR_MASK)
+    {
+        case FILE_ATTR_AUDIO:
+            return Icon_Audio;
+        case FILE_ATTR_M3U:
+            return Icon_Playlist;
+        case FILE_ATTR_BMARK:
+        case FILE_ATTR_CUE:
+            return Icon_Bookmark;
+        case FILE_ATTR_CFG:
+        case FILE_ATTR_LOG:
+            return Icon_Font;
+    }
+    ext = strrchr(entry->name, '.');
+    if (ext)
+    {
+        for (size_t i = 0; i < ARRAY_SIZE(text_ext); i++)
+            if (!strcasecmp(ext + 1, text_ext[i]))
+                return Icon_Font;
+    }
+    return Icon_Voice;
+}
+
 static enum themable_icons tree_get_fileicon(int selected_item, void * data)
 {
     struct tree_context * local_tc=(struct tree_context *)data;
@@ -222,10 +255,9 @@ static enum themable_icons tree_get_fileicon(int selected_item, void * data)
     {
         struct entry *entry = get_valid_entry(__func__, local_tc, selected_item);
 
-        /* RPod: folders need no icon, the names say it */
         if (entry->attr & ATTR_DIRECTORY)
-            return Icon_NOICON;
-        return filetype_get_icon(entry->attr);
+            return RPOD_FOLDER_ICON;
+        return rpod_file_icon(entry);
     }
 }
 

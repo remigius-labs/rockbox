@@ -43,6 +43,10 @@ static long progress_next_tick, talked_tick;
 #define RECT_SPACING 3
 #define SPLASH_MEMORY_INTERVAL (HZ)
 
+#if LCD_DEPTH == 16 && LCD_PIXELFORMAT == RGB565 && !defined(BOOTLOADER)
+static int rpod_box_top = -1; /* RPod: bottom of the text box in the full area, -1 = stock box */
+#endif
+
 static bool splash_internal(struct screen * screen, const char *fmt, va_list ap,
                             struct viewport *vp, int addl_lines)
 {
@@ -151,6 +155,9 @@ static bool splash_internal(struct screen * screen, const char *fmt, va_list ap,
     screen->scroll_stop();
 
 #if LCD_DEPTH == 16 && LCD_PIXELFORMAT == RGB565 && !defined(BOOTLOADER)
+    rpod_box_top = -1;
+#endif
+#if LCD_DEPTH == 16 && LCD_PIXELFORMAT == RGB565 && !defined(BOOTLOADER)
     /* RPod: no box. Darken the whole area to the top bar's dark (34%, from the backdrop so
      * repeated splashes never stack) and put the text in the middle, like the yes/no screen */
     bool rpod_dim = screen->screen_type == SCREEN_MAIN && lcd_get_backdrop();
@@ -173,6 +180,9 @@ static bool splash_internal(struct screen * screen, const char *fmt, va_list ap,
     }
 #endif
 
+#if LCD_DEPTH == 16 && LCD_PIXELFORMAT == RGB565 && !defined(BOOTLOADER)
+    struct viewport rpod_full = *vp;
+#endif
     width = maxw + 2*RECT_SPACING;
     height = y + 2*RECT_SPACING;
 
@@ -192,10 +202,17 @@ static bool splash_internal(struct screen * screen, const char *fmt, va_list ap,
     vp->flags |=  VP_FLAG_ALIGN_CENTER;
 #if LCD_DEPTH == 16 && LCD_PIXELFORMAT == RGB565 && !defined(BOOTLOADER)
     if (rpod_dim)
-    {
+    {   /* keep the whole area as the viewport, so the update shows all of the dark,
+         * not only the box around the text */
+        vp->x = rpod_full.x;
+        vp->width = rpod_full.width;
+        vp->y = rpod_full.y;
+        vp->height = rpod_full.height;
+        rpod_box_top = (rpod_full.height - height) / 2;
         vp->drawmode = DRMODE_FG;
-        for(i = 0, y = RECT_SPACING; i <= line; i++, y+= chr_h)
+        for(i = 0, y = rpod_box_top + RECT_SPACING; i <= line; i++, y+= chr_h)
             screen->putsxyf(0, y, "%.*s", lines[i].len, lines[i].str);
+        rpod_box_top += height; /* now the box's bottom, for the progress bar */
         return true; /* needs update */
     }
 #endif
@@ -282,6 +299,36 @@ void splash_progress_set_delay(long delay_ticks)
     talked_tick = 0;
 }
 
+#if LCD_DEPTH == 16 && LCD_PIXELFORMAT == RGB565 && !defined(BOOTLOADER)
+/* RPod: the progress bar in the list scrollbar's gilt: dark rim, lit top/left, gold
+ * bottom/right, dark inside; the done part gold with a lit top edge */
+static void rpod_progress(struct screen *screen, int x, int y, int w, int h,
+                          int current, int total)
+{
+    const unsigned low = LCD_RGBPACK(59, 42, 20), gold = LCD_RGBPACK(201, 162, 79),
+                   hi = LCD_RGBPACK(240, 212, 136), inside = LCD_RGBPACK(26, 18, 11);
+    const unsigned old_fg = screen->get_foreground();
+    if (h > 10)
+    {
+        y += (h - 10) / 2;
+        h = 10;
+    }
+    screen->set_drawmode(DRMODE_SOLID);
+    screen->set_foreground(low);    screen->drawrect(x, y, w, h);
+    screen->set_foreground(gold);   screen->drawrect(x + 1, y + 1, w - 2, h - 2);
+    screen->set_foreground(hi);     screen->hline(x + 1, x + w - 2, y + 1); screen->vline(x + 1, y + 1, y + h - 2);
+    screen->set_foreground(inside); screen->fillrect(x + 2, y + 2, w - 4, h - 4);
+    int track = w - 6;
+    int done = total > 0 ? track * MIN(current, total) / total : 0;
+    if (done > 0)
+    {
+        screen->set_foreground(gold); screen->fillrect(x + 3, y + 3, done, h - 6);
+        screen->set_foreground(hi);   screen->hline(x + 3, x + 2 + done, y + 3);
+    }
+    screen->set_foreground(old_fg);
+}
+#endif
+
 /* splash a progress meter */
 void splash_progress(int current, int total, const char *fmt, ...)
 {
@@ -326,12 +373,23 @@ void splash_progress(int current, int total, const char *fmt, ...)
             int y = vp.height - size - RECT_SPACING;
             int w = vp.width - RECT_SPACING * 2;
             int h = size;
+#if LCD_DEPTH == 16 && LCD_PIXELFORMAT == RGB565 && !defined(BOOTLOADER)
+            if (screen->screen_type == SCREEN_MAIN && rpod_box_top >= 0)
+            {   /* under the text, centred, as wide as the box would be */
+                int bw = vp.width / 2;
+                rpod_progress(screen, (vp.width - bw) / 2, rpod_box_top - size - RECT_SPACING,
+                              bw, size, current, total);
+            }
+            else
+#endif
+            {
 #ifdef HAVE_LCD_COLOR
             const int sb_flags = HORIZONTAL | FOREGROUND;
 #else
             const int sb_flags = HORIZONTAL;
 #endif
             gui_scrollbar_draw(screen, x, y, w, h, total, 0, current, sb_flags);
+            }
 
             screen->update_viewport();
         }
