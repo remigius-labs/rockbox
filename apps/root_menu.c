@@ -134,7 +134,8 @@ static int browser(void* param)
             {
                 strcpy(folder, current_track_path);
             }
-            else if (!strcmp(last_folder, "/"))
+            else if (!strcmp(last_folder, "/") ||
+                     last_screen == GO_TO_ROOT) /* RPod: Files from the main menu opens at the top */
             {
                 strcpy(folder, global_settings.start_directory);
             }

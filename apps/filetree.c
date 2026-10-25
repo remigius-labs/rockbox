@@ -34,6 +34,7 @@
 #include "filetypes.h"
 #include "talk.h"
 #include "playlist.h"
+#include "playlist_viewer.h"
 #include "lang.h"
 #include "language.h"
 #include "screens.h"
@@ -592,14 +593,17 @@ int ft_enter(struct tree_context* c)
 
         switch ( file_attr & FILE_ATTR_MASK ) {
             case FILE_ATTR_M3U:
-                play = ft_play_playlist(buf, c->currdir, file->name);
-
-                if (play)
+            {
+                /* RPod: open the playlist and show its songs; playback starts from the song
+                 * picked there, Back returns to this folder */
+                int picked = -1;
+                if (playlist_viewer_ex(buf, &picked) == PLAYLIST_VIEWER_OK && picked >= 0)
                 {
-                    start_index = 0;
+                    start_index = playlist_get_current()->index;
+                    play = true;
                 }
-
                 break;
+            }
 
             case FILE_ATTR_AUDIO:
             {
