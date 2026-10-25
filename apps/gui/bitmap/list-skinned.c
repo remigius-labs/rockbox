@@ -250,8 +250,8 @@ static void rpod_scrollbar(struct screen *display, struct gui_synclist *list, st
 
 
 /* ---- RPod: album covers while browsing ---------------------------------------------------
- * In the file browser, a folder whose sub-folders hold a cover.32x32.bmp (an artist's albums)
- * is drawn as tall rows: the cover in a gilt frame, the album name beside it. Only the rows on
+ * In the file browser, an artist's folder (/Artists/<name>) or any folder whose sub-folders hold
+ * a cover.32x32.bmp is drawn as tall rows: the cover in a gilt frame, the album name beside it. Only the rows on
  * screen load their cover, and the last few stay in memory. Song lists stay normal rows. */
 static struct gui_synclist *rich_list;
 static bool (*rich_item_dir)(int item, char *buf, size_t sz);
@@ -315,8 +315,10 @@ static bool rich_active(struct gui_synclist *list)
         return rich_on;
     strlcpy(rich_last_key, k, sizeof(rich_last_key));
     rich_last_n = list->nb_items;
-    rich_on = false;
-    for (int i = 0; i < list->nb_items && i < 4; i++)  /* an album list: one of the first folders has a cover */
+    /* an artist's folder (one level under /Artists) is always an album list, covers or not */
+    const char *rest = !strncasecmp(k, "/Artists/", 9) ? k + 9 : NULL;
+    rich_on = rest && *rest && !strchr(rest, '/');
+    for (int i = 0; !rich_on && i < list->nb_items && i < 4; i++)  /* an album list: one of the first folders has a cover */
     {
         char p[MAX_PATH];
         if (thumb_path(i, p, sizeof(p)) && file_exists(p))
