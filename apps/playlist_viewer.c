@@ -868,7 +868,7 @@ static enum themable_icons playlist_callback_icons(int selected_item,
         return Icon_Queued;
     }
     else
-        return Icon_NOICON;
+        return Icon_Audio; /* RPod: every song gets the note, no empty space */
 }
 
 static int playlist_callback_voice(int selected_item, void *data)
