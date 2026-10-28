@@ -233,8 +233,7 @@ static int timestretch_callback(int action,
 #endif /* AUDIOHW_HAVE_EQ */
 
 MAKE_MENU(sound_settings, ID2P(LANG_SOUND_SETTINGS), NULL, Icon_Audio,
-          &volume
-          ,&volume_limit
+          &volume /* RPod: Volume Limit hidden, the limit is fixed at 0 dB */
 #ifdef AUDIOHW_HAVE_BASS
           ,&bass
 #endif

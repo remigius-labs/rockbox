@@ -903,9 +903,12 @@ static void start_in_callback(int var)
 }
 
 /* volume limiter */
+/* RPod: the limit is fixed at 0 dB; a saved value is ignored */
+#define RPOD_VOLUME_LIMIT 0
 static void volume_limit_load_from_cfg(void* var, char*value)
 {
-    *(int*)var = atoi(value);
+    (void)value;
+    *(int*)var = RPOD_VOLUME_LIMIT;
 }
 static char* volume_limit_write_to_cfg(void* setting, char*buf, int buf_len)
 {
@@ -917,12 +920,12 @@ static bool volume_limit_is_changed(void* setting, void* defaultval)
 {
     (void)defaultval;
     int current = *(int*)setting;
-    return (current != sound_max(SOUND_VOLUME));
+    return (current != RPOD_VOLUME_LIMIT);
 }
 static void volume_limit_set_default(void* setting, void* defaultval)
 {
     (void)defaultval;
-    *(int*)setting = sound_max(SOUND_VOLUME);
+    *(int*)setting = RPOD_VOLUME_LIMIT;
 }
 
 #if defined(HAVE_EROS_QN_CODEC)
