@@ -1222,8 +1222,11 @@ const char *get_token_value(struct gui_wps *gwps,
             break;
 
         case SKIN_TOKEN_VOLUME:
-            format_sound_value_ex(buf, buf_size, SOUND_VOLUME,
-                                  global_status.volume, true);
+            /* RPod: volume as 0-100, from the lowest volume up to the volume limit */
+            snprintf(buf, buf_size, "%ld",
+                     to_normalized_volume(global_status.volume,
+                                          sound_min(SOUND_VOLUME),
+                                          global_settings.volume_limit, 100));
 
             if (intval)
             {
