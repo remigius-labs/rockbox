@@ -226,7 +226,7 @@ restart:
                 switch (playlist_viewer_ex(selected_playlist, &most_recent_selection)) {
                     case PLAYLIST_VIEWER_OK:
                     {
-                        reopen_last_playlist = true;
+                        /* RPod: Playlists always opens the list, never the last playlist */
                         result = 0;
                         break;
                     }
@@ -238,7 +238,7 @@ restart:
                     case PLAYLIST_VIEWER_MAINMENU:
                     /* Fall through */
                     default:
-                        reopen_last_playlist = true;
+                        /* RPod: Playlists always opens the list, never the last playlist */
                         break;
                 }
             }
